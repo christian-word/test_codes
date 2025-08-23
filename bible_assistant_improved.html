@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Біблія Асистент - Спрощена система</title>
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --bg: #f8f9fa;
+            --card: #ffffff;
+            --text: #202124;
+            --muted: #5f6368;
+            --border: #dadce0;
+            --hover: #f1f3f4;
+            --success: #34a853;
+            --danger: #ea4335;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Боковая панель */
+        .sidebar {
+            width: 320px;
+            background: var(--card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-280px);
+            width: 40px;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .collapse-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .collapse-btn:hover {
+            background: var(--hover);
+        }
+
+        /* Единая строка поиска */
+        .search-container {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-box {
+            position: relative;
+            width: 100%;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px 12px 40px;
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            font-size: 14px;
+            outline: none;
+            background: var(--hover);
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            background: white;
+            border-color: var(--primary);
+            box-shadow: 0 2px 5px 1px rgba(64,60,67,.16);
+        }
+
+        .search-placeholder {
+            position: absolute;
+            left: 40px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+            font-size: 14px;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .search-input:focus + .search-placeholder,
+        .search-input:not(:placeholder-shown) + .search-placeholder {
+            opacity: 0;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+            font-size: 16px;
+        }
+
+        .search-results {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-top: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .search-results.active {
+            display: block;
+        }
+
+        .search-result {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+        }
+
+        .search-result:hover {
+            background: var(--hover);
+        }
+
+        .search-result:last-child {
+            border-bottom: none;
+        }
+
+        .result-type {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .result-title {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .result-preview {
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.3;
+        }
+
+        /* Табы */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            flex: 1;
+            background: none;
+            border: none;
+            padding: 12px 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--muted);
+            position: relative;
+        }
+
+        .tab.active {
+            color: var(--primary);
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary);
+        }
+
+        /* Содержимое табов */
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .panel {
+            display: none;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        /* Элементы списков */
+        .list-item {
+            padding: 12px;
+            margin-bottom: 4px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .list-item:hover {
+            border-color: var(--primary);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .list-item.selected {
+            border-color: var(--primary);
+            background: rgba(26, 115, 232, 0.04);
+        }
+
+        .item-actions {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .list-item:hover .item-actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            background: var(--hover);
+            border: none;
+            border-radius: 4px;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: var(--border);
+            transform: scale(1.1);
+        }
+
+        .action-btn.edit {
+            color: var(--primary);
+        }
+
+        .action-btn.delete {
+            color: var(--danger);
+        }
+
+        .action-btn.delete:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* Подсветка поиска */
+        mark {
+            background: rgba(255, 204, 0, 0.3);
+            color: inherit;
+            padding: 1px 2px;
+            border-radius: 2px;
+        }
+
+        .item-title {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .item-meta {
+            font-size: 12px;
+            color: var(--muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .item-category {
+            background: var(--primary);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .category-study { background: #34a853; }
+        .category-prayer { background: #9c27b0; }
+        .category-sermon { background: #ff9800; }
+        .category-personal { background: #e91e63; }
+
+        /* Основная область */
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            background: var(--bg);
+            position: relative;
+        }
+
+        .menu-toggle {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 16px;
+            display: none;
+        }
+
+        .main-content.sidebar-collapsed .menu-toggle {
+            display: block;
+        }
+
+        /* Кнопки действий */
+        .action-buttons {
+            padding: 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--hover);
+            color: var(--text);
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Пустое состояние */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--muted);
+        }
+
+        .empty-state h3 {
+            margin: 0 0 8px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .empty-state p {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                left: 0;
+                top: 0;
+                height: 100%;
+                z-index: 1000;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content .menu-toggle {
+                display: block;
+            }
+
+            .overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 999;
+                display: none;
+            }
+
+            .overlay.active {
+                display: block;
+            }
+        }
+
+        /* Модальные окна */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group.hidden {
+            display: none;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+
+        .form-input, .form-textarea, .form-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Боковая панель -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2 class="sidebar-title">📖 Біблія Асистент</h2>
+                <button class="collapse-btn" onclick="toggleSidebar()">‹</button>
+            </div>
+
+            <!-- Поиск в активной вкладке -->
+            <div class="search-container">
+                <div class="search-box">
+                    <div class="search-icon">🔍</div>
+                    <input type="text" 
+                           class="search-input" 
+                           id="contextSearch"
+                           oninput="performContextSearch(this.value)"
+                           placeholder="">
+                    <div class="search-placeholder" id="searchPlaceholder">Пошук у сесіях...</div>
+                </div>
+                <div class="search-results" id="searchResults"></div>
+            </div>
+
+            <!-- Табы -->
+            <div class="tabs">
+                <button class="tab active" data-tab="sessions" onclick="switchTab('sessions')">
+                    📝 Сесії
+                </button>
+                <button class="tab" data-tab="notes" onclick="switchTab('notes')">
+                    🔖 Нотатки
+                </button>
+            </div>
+
+            <!-- Содержимое -->
+            <div class="tab-content">
+                <!-- Панель сессий -->
+                <div class="panel active" id="sessions-panel">
+                    <div id="sessions-list"></div>
+                    <div class="empty-state" id="sessions-empty" style="display: none;">
+                        <h3>Немає сесій</h3>
+                        <p>Створіть нову сесію для початку роботи</p>
+                    </div>
+                </div>
+
+                <!-- Панель заметок -->
+                <div class="panel" id="notes-panel">
+                    <div id="notes-list"></div>
+                    <div class="empty-state" id="notes-empty" style="display: none;">
+                        <h3>Немає нотаток</h3>
+                        <p>Створіть нотатку або закладку</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Кнопки действий -->
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="createNew()">
+                    ➕ Створити
+                </button>
+                <button class="btn btn-secondary" onclick="showOptions()">
+                    📁 Файл
+                </button>
+            </div>
+        </div>
+
+        <!-- Основная область -->
+        <div class="main-content" id="mainContent">
+            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            
+            <h1>Біблія Асистент</h1>
+            <p>ЄХБ м.Суми, Україна</p>
+            
+            <!-- Здесь будет основной чат -->
+            <div id="chatArea">
+                <div style="padding: 40px; text-align: center; color: #666;">
+                    <h3>Вітаємо у Біблійному Асистенті!</h3>
+                    <p>Почніть нову розмову або виберіть існуючу сесію з бокової панелі.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Оверлей для мобильных -->
+    <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+    <!-- Модальное окно создания -->
+    <div class="modal" id="createModal">
+        <div class="modal-content">
+            <h3>Створити нову</h3>
+            <div class="form-group">
+                <label class="form-label">Тип:</label>
+                <select class="form-select" id="createType" onchange="toggleCreateFields()">
+                    <option value="session">📝 Нова сесія</option>
+                    <option value="note">📖 Нотатка</option>
+                    <option value="bookmark">🔖 Закладка</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Назва:</label>
+                <input type="text" class="form-input" id="createTitle" placeholder="Введіть назву...">
+            </div>
+
+            <div id="noteFields" style="display: none;">
+                <div class="form-group">
+                    <label class="form-label">Категорія:</label>
+                    <select class="form-select" id="createCategory">
+                        <option value="study">📖 Вивчення</option>
+                        <option value="prayer">🙏 Молитва</option>
+                        <option value="sermon">🎤 Проповідь</option>
+                        <option value="personal">💭 Особисте</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Біблійна посилання:</label>
+                    <input type="text" class="form-input" id="createReference" placeholder="напр: Пс. 23:1-6">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Зміст:</label>
+                    <textarea class="form-textarea" id="createContent" placeholder="Введіть текст..."></textarea>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Скасувати</button>
+                <button class="btn btn-primary" onclick="createItem()">Створити</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно редактирования сессии -->
+    <div class="modal" id="editSessionModal">
+        <div class="modal-content">
+            <h3>Редагувати сесію</h3>
+            <div class="form-group">
+                <label class="form-label">Назва:</label>
+                <input type="text" class="form-input" id="editSessionTitle" placeholder="Введіть назву сесії...">
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Скасувати</button>
+                <button class="btn btn-danger" onclick="confirmDeleteCurrentSession()">Видалити</button>
+                <button class="btn btn-primary" onclick="saveSessionEdit()">Зберегти</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно редактирования заметки -->
+    <div class="modal" id="editNoteModal">
+        <div class="modal-content">
+            <h3>Редагувати нотатку</h3>
+            <div class="form-group">
+                <label class="form-label">Назва:</label>
+                <input type="text" class="form-input" id="editNoteTitle" placeholder="Введіть назву...">
+            </div>
+            
+            <div id="editNoteFields">
+                <div class="form-group">
+                    <label class="form-label">Категорія:</label>
+                    <select class="form-select" id="editNoteCategory" onchange="toggleEditNoteFields()">
+                        <option value="">🔖 Закладка</option>
+                        <option value="study">📖 Вивчення</option>
+                        <option value="prayer">🙏 Молитва</option>
+                        <option value="sermon">🎤 Проповідь</option>
+                        <option value="personal">💭 Особисте</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="editNoteReferenceGroup">
+                    <label class="form-label">Біблійна посилання:</label>
+                    <input type="text" class="form-input" id="editNoteReference" placeholder="напр: Пс. 23:1-6">
+                </div>
+
+                <div class="form-group" id="editNoteContentGroup">
+                    <label class="form-label">Зміст:</label>
+                    <textarea class="form-textarea" id="editNoteContent" placeholder="Введіть текст..."></textarea>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Скасувати</button>
+                <button class="btn btn-danger" onclick="confirmDeleteCurrentNote()">Видалити</button>
+                <button class="btn btn-primary" onclick="saveNoteEdit()">Зберегти</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="optionsModal">
+        <div class="modal-content">
+            <h3>Опції</h3>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button class="btn btn-secondary" onclick="exportData()">📤 Експорт даних</button>
+                <button class="btn btn-secondary" onclick="importData()">📥 Імпорт даних</button>
+                <button class="btn btn-secondary" onclick="clearAll()">🗑️ Очистити все</button>
+                <button class="btn btn-primary" onclick="closeModal()">Закрити</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Данные приложения
+        let appData = {
+            sessions: [
+                {
+                    id: 'session_1',
+                    title: 'Размышления о Псалме 23',
+                    created: Date.now() - 86400000,
+                    modified: Date.now() - 3600000,
+                    messageCount: 12
+                },
+                {
+                    id: 'session_2', 
+                    title: 'Молитва о мудрости',
+                    created: Date.now() - 172800000,
+                    modified: Date.now() - 7200000,
+                    messageCount: 8
+                }
+            ],
+            notes: [
+                {
+                    id: 'note_1',
+                    type: 'note',
+                    title: 'Заметка о любви Божьей',
+                    content: 'Размышления над стихом Ів. 3:16 - "Так возлюбил Бог мир..."',
+                    category: 'study',
+                    bibleRef: 'Ів. 3:16',
+                    created: Date.now() - 259200000,
+                    sessionId: null
+                },
+                {
+                    id: 'note_2',
+                    type: 'bookmark',
+                    title: 'Важный момент в беседе',
+                    content: '',
+                    category: null,
+                    bibleRef: '',
+                    created: Date.now() - 86400000,
+                    sessionId: 'session_1'
+                }
+            ],
+            currentTab: 'sessions',
+            selectedItem: null
+        };
+
+        // Новая функция для управления полями редактирования заметки
+        function toggleEditNoteFields() {
+            const category = document.getElementById('editNoteCategory').value;
+            const referenceGroup = document.getElementById('editNoteReferenceGroup');
+            const contentGroup = document.getElementById('editNoteContentGroup');
+            
+            if (category === '') {
+                // Это закладка - скрываем поля
+                referenceGroup.classList.add('hidden');
+                contentGroup.classList.add('hidden');
+            } else {
+                // Это заметка - показываем поля
+                referenceGroup.classList.remove('hidden');
+                contentGroup.classList.remove('hidden');
+            }
+        }
+
+        // Контекстный поиск (в рамках активной вкладки)
+        function performContextSearch(query) {
+            const results = document.getElementById('searchResults');
+            const searchInput = document.getElementById('contextSearch');
+            
+            if (!query.trim()) {
+                results.classList.remove('active');
+                // Показываем все элементы
+                renderCurrentTab();
+                return;
+            }
+
+            const searchResults = [];
+            query = query.toLowerCase();
+
+            if (appData.currentTab === 'sessions') {
+                // Поиск только в сессиях
+                appData.sessions.forEach(session => {
+                    if (session.title.toLowerCase().includes(query)) {
+                        searchResults.push({
+                            type: 'сесія',
+                            id: session.id,
+                            title: session.title,
+                            preview: `${session.messageCount} повідомлень • ${formatDate(session.modified)}`
+                        });
+                    }
+                });
+            } else {
+                // Поиск только в заметках
+                appData.notes.forEach(note => {
+                    if (note.title.toLowerCase().includes(query) || 
+                        note.content.toLowerCase().includes(query) ||
+                        (note.bibleRef && note.bibleRef.toLowerCase().includes(query))) {
+                        searchResults.push({
+                            type: note.type === 'bookmark' ? 'закладка' : 'нотатка',
+                            id: note.id,
+                            title: note.title,
+                            preview: note.content ? note.content.substring(0, 60) + '...' : note.bibleRef
+                        });
+                    }
+                });
+            }
+
+            renderContextSearchResults(searchResults, query);
+        }
+
+        function renderContextSearchResults(results, query) {
+            const container = document.getElementById('searchResults');
+            
+            if (results.length === 0) {
+                container.innerHTML = '<div class="search-result"><div class="result-preview">Нічого не знайдено</div></div>';
+            } else {
+                container.innerHTML = results.map(result => `
+                    <div class="search-result" onclick="selectContextSearchResult('${result.id}')">
+                        <div class="result-type">${result.type}</div>
+                        <div class="result-title">${highlightSearchTerm(result.title, query)}</div>
+                        <div class="result-preview">${result.preview}</div>
+                    </div>
+                `).join('');
+            }
+            
+            container.classList.add('active');
+        }
+
+        function highlightSearchTerm(text, term) {
+            if (!term) return text;
+            const regex = new RegExp(`(${term})`, 'gi');
+            return text.replace(regex, '<mark>$1</mark>');
+        }
+
+        function selectContextSearchResult(id) {
+            document.getElementById('searchResults').classList.remove('active');
+            document.getElementById('contextSearch').value = '';
+            
+            if (appData.currentTab === 'sessions') {
+                selectSession(id);
+            } else {
+                selectNote(id);
+            }
+        }
+
+        function updateSearchPlaceholder() {
+            const placeholder = document.getElementById('searchPlaceholder');
+            if (appData.currentTab === 'sessions') {
+                placeholder.textContent = 'Пошук у сесіях...';
+            } else {
+                placeholder.textContent = 'Пошук у нотатках...';
+            }
+        }
+
+        // Переключение табов
+        function switchTab(tabName) {
+            // Обновляем активный таб
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+            // Показываем соответствующую панель
+            document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active'));
+            document.getElementById(`${tabName}-panel`).classList.add('active');
+
+            appData.currentTab = tabName;
+            
+            // Обновляем плейсхолдер поиска
+            updateSearchPlaceholder();
+            
+            // Очищаем поиск при переключении
+            document.getElementById('contextSearch').value = '';
+            document.getElementById('searchResults').classList.remove('active');
+            
+            renderCurrentTab();
+        }
+
+        function renderCurrentTab() {
+            if (appData.currentTab === 'sessions') {
+                renderSessions();
+            } else {
+                renderNotes();
+            }
+        }
+
+        function renderSessions() {
+            const container = document.getElementById('sessions-list');
+            const empty = document.getElementById('sessions-empty');
+
+            if (appData.sessions.length === 0) {
+                container.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+
+            empty.style.display = 'none';
+            container.innerHTML = appData.sessions.map(session => `
+                <div class="list-item ${appData.selectedItem === session.id ? 'selected' : ''}" 
+                     onclick="selectSession('${session.id}')">
+                    <div class="item-actions">
+                        <button class="action-btn edit" onclick="event.stopPropagation(); editSession('${session.id}')" title="Редагувати">
+                            ✏️
+                        </button>
+                        <button class="action-btn delete" onclick="event.stopPropagation(); deleteSession('${session.id}')" title="Видалити">
+                            🗑️
+                        </button>
+                    </div>
+                    <div class="item-title">${session.title}</div>
+                    <div class="item-meta">
+                        <span>${session.messageCount} повідомлень</span>
+                        <span>${formatDate(session.modified)}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderNotes() {
+            const container = document.getElementById('notes-list');
+            const empty = document.getElementById('notes-empty');
+
+            if (appData.notes.length === 0) {
+                container.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+
+            empty.style.display = 'none';
+            container.innerHTML = appData.notes.map(note => {
+                const categoryNames = {
+                    study: '📖 Вивчення',
+                    prayer: '🙏 Молитва',
+                    sermon: '🎤 Проповідь',
+                    personal: '💭 Особисте'
+                };
+
+                return `
+                    <div class="list-item ${appData.selectedItem === note.id ? 'selected' : ''}" 
+                         onclick="selectNote('${note.id}')">
+                        <div class="item-actions">
+                            <button class="action-btn edit" onclick="event.stopPropagation(); editNote('${note.id}')" title="Редагувати">
+                                ✏️
+                            </button>
+                            <button class="action-btn delete" onclick="event.stopPropagation(); deleteNote('${note.id}')" title="Видалити">
+                                🗑️
+                            </button>
+                        </div>
+                        <div class="item-title">${note.title}</div>
+                        ${note.content ? `<div class="result-preview">${note.content.substring(0, 80)}...</div>` : ''}
+                        <div class="item-meta">
+                            ${note.category ? `<span class="item-category category-${note.category}">${categoryNames[note.category]}</span>` : 
+                              `<span class="item-category">🔖 Закладка</span>`}
+                            <span>${formatDate(note.created)}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selectSession(id) {
+            appData.selectedItem = id;
+            renderSessions();
+            console.log('Выбрана сессия:', id);
+        }
+
+        function selectNote(id) {
+            appData.selectedItem = id;
+            renderNotes();
+            console.log('Выбрана заметка:', id);
+        }
+
+        // Управление боковой панелью
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            const overlay = document.getElementById('overlay');
+
+            if (window.innerWidth <= 768) {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('active');
+            } else {
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('sidebar-collapsed');
+            }
+        }
+
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('overlay').classList.remove('active');
+        }
+
+        // Создание нового элемента
+        function createNew() {
+            const modal = document.getElementById('createModal');
+            modal.classList.add('active');
+            
+            // Устанавливаем тип по умолчанию в зависимости от активного таба
+            const typeSelect = document.getElementById('createType');
+            typeSelect.value = appData.currentTab === 'sessions' ? 'session' : 'note';
+            toggleCreateFields();
+        }
+
+        function toggleCreateFields() {
+            const type = document.getElementById('createType').value;
+            const noteFields = document.getElementById('noteFields');
+            noteFields.style.display = type === 'session' ? 'none' : 'block';
+        }
+
+        function createItem() {
+            const type = document.getElementById('createType').value;
+            const title = document.getElementById('createTitle').value.trim();
+            
+            if (!title) {
+                alert('Введіть назву!');
+                return;
+            }
+
+            const newItem = {
+                id: `${type}_${Date.now()}`,
+                title: title,
+                created: Date.now(),
+                modified: Date.now()
+            };
+
+            if (type === 'session') {
+                newItem.messageCount = 0;
+                appData.sessions.unshift(newItem);
+                switchTab('sessions');
+                appData.selectedItem = newItem.id;
+            } else {
+                newItem.type = type;
+                newItem.content = document.getElementById('createContent').value.trim();
+                newItem.category = type === 'bookmark' ? null : document.getElementById('createCategory').value;
+                newItem.bibleRef = document.getElementById('createReference').value.trim();
+                newItem.sessionId = null;
+                
+                appData.notes.unshift(newItem);
+                switchTab('notes');
+                appData.selectedItem = newItem.id;
+            }
+
+            saveData();
+            renderCurrentTab();
+            closeModal();
+        }
+
+        // Управление сессиями
+        let currentEditingSessionId = null;
+        let currentEditingNoteId = null;
+
+        function editSession(id) {
+            const session = appData.sessions.find(s => s.id === id);
+            if (!session) return;
+
+            currentEditingSessionId = id;
+            document.getElementById('editSessionTitle').value = session.title;
+            document.getElementById('editSessionModal').classList.add('active');
+        }
+
+        function saveSessionEdit() {
+            if (!currentEditingSessionId) return;
+
+            const title = document.getElementById('editSessionTitle').value.trim();
+            if (!title) {
+                alert('Введіть назву сесії!');
+                return;
+            }
+
+            const session = appData.sessions.find(s => s.id === currentEditingSessionId);
+            if (session) {
+                session.title = title;
+                session.modified = Date.now();
+                saveData();
+                renderSessions();
+                closeModal();
+            }
+        }
+
+        function deleteSession(id) {
+            if (confirm('Видалити сесію? Усі повідомлення будуть втрачені!')) {
+                appData.sessions = appData.sessions.filter(s => s.id !== id);
+                
+                // Удаляем связанные заметки
+                appData.notes = appData.notes.filter(n => n.sessionId !== id);
+                
+                if (appData.selectedItem === id) {
+                    appData.selectedItem = null;
+                }
+                
+                saveData();
+                renderSessions();
+                if (appData.currentTab === 'notes') {
+                    renderNotes(); // Обновляем заметки, если показываются
+                }
+            }
+        }
+
+        function confirmDeleteCurrentSession() {
+            if (currentEditingSessionId) {
+                closeModal();
+                deleteSession(currentEditingSessionId);
+            }
+        }
+
+        // Управление заметками
+        function editNote(id) {
+            const note = appData.notes.find(n => n.id === id);
+            if (!note) return;
+
+            currentEditingNoteId = id;
+            document.getElementById('editNoteTitle').value = note.title;
+            document.getElementById('editNoteCategory').value = note.category || '';
+            document.getElementById('editNoteReference').value = note.bibleRef || '';
+            document.getElementById('editNoteContent').value = note.content || '';
+            
+            // Показываем/скрываем поля в зависимости от категории
+            toggleEditNoteFields();
+            
+            document.getElementById('editNoteModal').classList.add('active');
+        }
+
+        function saveNoteEdit() {
+            if (!currentEditingNoteId) return;
+
+            const title = document.getElementById('editNoteTitle').value.trim();
+            if (!title) {
+                alert('Введіть назву нотатки!');
+                return;
+            }
+
+            const note = appData.notes.find(n => n.id === currentEditingNoteId);
+            if (note) {
+                note.title = title;
+                const category = document.getElementById('editNoteCategory').value || null;
+                note.category = category;
+                
+                if (category) {
+                    // Это заметка - сохраняем все поля
+                    note.bibleRef = document.getElementById('editNoteReference').value.trim();
+                    note.content = document.getElementById('editNoteContent').value.trim();
+                    note.type = 'note';
+                } else {
+                    // Это закладка - очищаем поля содержимого
+                    note.bibleRef = '';
+                    note.content = '';
+                    note.type = 'bookmark';
+                }
+                
+                note.modified = Date.now();
+                
+                saveData();
+                renderNotes();
+                closeModal();
+            }
+        }
+
+        function deleteNote(id) {
+            const note = appData.notes.find(n => n.id === id);
+            if (!note) return;
+
+            const typeName = note.type === 'bookmark' ? 'закладку' : 'нотатку';
+            if (confirm(`Видалити ${typeName} "${note.title}"?`)) {
+                appData.notes = appData.notes.filter(n => n.id !== id);
+                
+                if (appData.selectedItem === id) {
+                    appData.selectedItem = null;
+                }
+                
+                saveData();
+                renderNotes();
+            }
+        }
+
+        function confirmDeleteCurrentNote() {
+            if (currentEditingNoteId) {
+                closeModal();
+                deleteNote(currentEditingNoteId);
+            }
+        }
+
+        function closeModal() {
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.classList.remove('active');
+            });
+            
+            // Очищаем формы
+            document.getElementById('createTitle').value = '';
+            document.getElementById('createContent').value = '';
+            document.getElementById('createReference').value = '';
+            
+            // Убираем скрытие полей в форме редактирования
+            document.getElementById('editNoteReferenceGroup').classList.remove('hidden');
+            document.getElementById('editNoteContentGroup').classList.remove('hidden');
+            
+            // Сбрасываем переменные редактирования
+            currentEditingSessionId = null;
+            currentEditingNoteId = null;
+        }
+
+        function showOptions() {
+            document.getElementById('optionsModal').classList.add('active');
+        }
+
+        // Утилиты
+        function formatDate(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
+            
+            if (diffInHours < 1) return 'щойно';
+            if (diffInHours < 24) return `${diffInHours} год тому`;
+            if (diffInHours < 48) return 'вчора';
+            
+            return date.toLocaleDateString('uk-UA', { 
+                day: 'numeric', 
+                month: 'short' 
+            });
+        }
+
+        function saveData() {
+            // Используем объект в памяти вместо localStorage для совместимости с Claude.ai
+            console.log('Данные сохранены:', appData);
+        }
+
+        function loadData() {
+            // В Claude.ai artifacts используем данные из памяти
+            console.log('Данные загружены:', appData);
+        }
+
+        function exportData() {
+            const dataStr = JSON.stringify(appData, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `bible_assistant_backup_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            URL.revokeObjectURL(url);
+            closeModal();
+        }
+
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const importedData = JSON.parse(e.target.result);
+                            appData = { ...appData, ...importedData };
+                            saveData();
+                            renderCurrentTab();
+                            alert('Дані успішно імпортовано!');
+                            closeModal();
+                        } catch (error) {
+                            alert('Помилка при імпорті файлу!');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            
+            input.click();
+        }
+
+        function clearAll() {
+            if (confirm('Видалити всі дані? Цю дію неможливо скасувати!')) {
+                appData.sessions = [];
+                appData.notes = [];
+                appData.selectedItem = null;
+                saveData();
+                renderCurrentTab();
+                closeModal();
+            }
+        }
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            updateSearchPlaceholder();
+            renderCurrentTab();
+            
+            // Закрытие поиска при клике вне его
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.search-container')) {
+                    document.getElementById('searchResults').classList.remove('active');
+                }
+            });
+            
+            // Горячие клавиши
+            document.addEventListener('keydown', function(e) {
+                // Ctrl/Cmd + K - фокус на поиск
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    document.getElementById('contextSearch').focus();
+                }
+                
+                // Escape - закрыть модалки и поиск
+                if (e.key === 'Escape') {
+                    closeModal();
+                    document.getElementById('searchResults').classList.remove('active');
+                    document.getElementById('contextSearch').blur();
+                    // Сбрасываем поиск и показываем все элементы
+                    document.getElementById('contextSearch').value = '';
+                    renderCurrentTab();
+                }
+                
+                // Ctrl/Cmd + N - создать новый элемент
+                if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                    e.preventDefault();
+                    createNew();
+                }
+            });
+            
+            // Автосохранение каждые 30 секунд (в реальной среде с localStorage)
+            setInterval(saveData, 30000);
+        });
+
+        // API для интеграции с основным чатом
+        window.BibleAssistantAPI = {
+            // Создать сессию
+            createSession: function(title) {
+                const session = {
+                    id: `session_${Date.now()}`,
+                    title: title || 'Нова сесія',
+                    created: Date.now(),
+                    modified: Date.now(),
+                    messageCount: 0
+                };
+                
+                appData.sessions.unshift(session);
+                saveData();
+                
+                if (appData.currentTab === 'sessions') {
+                    renderSessions();
+                }
+                
+                return session.id;
+            },
+            
+            // Создать заметку из сообщения чата
+            createNoteFromMessage: function(messageContent, sessionId, title) {
+                const note = {
+                    id: `note_${Date.now()}`,
+                    type: 'note',
+                    title: title || messageContent.substring(0, 50) + '...',
+                    content: messageContent,
+                    category: 'study',
+                    bibleRef: '',
+                    created: Date.now(),
+                    sessionId: sessionId
+                };
+                
+                appData.notes.unshift(note);
+                saveData();
+                
+                if (appData.currentTab === 'notes') {
+                    renderNotes();
+                }
+                
+                return note.id;
+            },
+            
+            // Создать закладку
+            createBookmark: function(title, sessionId) {
+                const bookmark = {
+                    id: `bookmark_${Date.now()}`,
+                    type: 'bookmark',
+                    title: title,
+                    content: '',
+                    category: null,
+                    bibleRef: '',
+                    created: Date.now(),
+                    sessionId: sessionId
+                };
+                
+                appData.notes.unshift(bookmark);
+                saveData();
+                
+                if (appData.currentTab === 'notes') {
+                    renderNotes();
+                }
+                
+                return bookmark.id;
+            },
+            
+            // Обновить счетчик сообщений в сессии
+            updateSessionMessageCount: function(sessionId, count) {
+                const session = appData.sessions.find(s => s.id === sessionId);
+                if (session) {
+                    session.messageCount = count;
+                    session.modified = Date.now();
+                    saveData();
+                    
+                    if (appData.currentTab === 'sessions') {
+                        renderSessions();
+                    }
+                }
+            },
+            
+            // Получить все данные
+            getData: function() {
+                return appData;
+            },
+            
+            // Поиск в активной вкладке
+            search: function(query) {
+                document.getElementById('contextSearch').value = query;
+                performContextSearch(query);
+            },
+            
+            // Удалить сессию
+            deleteSession: function(sessionId) {
+                const index = appData.sessions.findIndex(s => s.id === sessionId);
+                if (index !== -1) {
+                    appData.sessions.splice(index, 1);
+                    // Удаляем связанные заметки
+                    appData.notes = appData.notes.filter(n => n.sessionId !== sessionId);
+                    saveData();
+                    renderCurrentTab();
+                    return true;
+                }
+                return false;
+            },
+            
+            // Удалить заметку
+            deleteNote: function(noteId) {
+                const index = appData.notes.findIndex(n => n.id === noteId);
+                if (index !== -1) {
+                    appData.notes.splice(index, 1);
+                    saveData();
+                    if (appData.currentTab === 'notes') {
+                        renderNotes();
+                    }
+                    return true;
+                }
+                return false;
+            },
+            
+            // Редактировать сессию
+            editSession: function(sessionId, newTitle) {
+                const session = appData.sessions.find(s => s.id === sessionId);
+                if (session) {
+                    session.title = newTitle;
+                    session.modified = Date.now();
+                    saveData();
+                    if (appData.currentTab === 'sessions') {
+                        renderSessions();
+                    }
+                    return true;
+                }
+                return false;
+            },
+            
+            // Редактировать заметку
+            editNote: function(noteId, updates) {
+                const note = appData.notes.find(n => n.id === noteId);
+                if (note) {
+                    Object.assign(note, updates, { modified: Date.now() });
+                    saveData();
+                    if (appData.currentTab === 'notes') {
+                        renderNotes();
+                    }
+                    return true;
+                }
+                return false;
+            },
+            
+            switchToTab: function(tabName) {
+                switchTab(tabName);
+            },
+            
+            // Выбрать элемент
+            selectItem: function(type, id) {
+                if (type === 'session') {
+                    switchTab('sessions');
+                    selectSession(id);
+                } else if (type === 'note') {
+                    switchTab('notes');
+                    selectNote(id);
+                }
+            }
+        };
+
+        console.log('Біблія Асистент ініціалізовано');
+        console.log('API доступне через window.BibleAssistantAPI');
+    </script>
+</body>
+</html>

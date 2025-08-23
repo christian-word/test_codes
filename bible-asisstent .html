@@ -1,0 +1,1323 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Біблійний чат</title>
+
+<script src="https://christian-word.github.io/bible-engine/bible-API.js"></script>
+
+<style>
+:root {
+  --accent: #ffcc00;
+  --bg: #f6f7fb;
+  --card: #ffffff;
+  --text: #222;
+  --muted: #666;
+  --primary: #1a73e8;
+  --success: #2f7d32;
+  --danger: #b00020;
+  --border: #e5e5e5;
+  --hover: #f0f0f0;
+}
+
+[data-theme="dark"] {
+  --bg: #1a1a1a;
+  --card: #2d2d2d;
+  --text: #ffffff;
+  --muted: #aaaaaa;
+  --border: #444;
+  --hover: #383838;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0; 
+  background: var(--bg); 
+  color: var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  display: flex; 
+  flex-direction: column;
+  height: 100vh; 
+  overflow: hidden;
+}
+
+/* MAIN CONTENT */
+#main-content {
+  flex: 1; 
+  display: flex; 
+  flex-direction: column;
+}
+
+#chat-header {
+  padding: 12px 16px; 
+  border-bottom: 1px solid var(--border);
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  gap: 12px;
+  background: var(--card);
+}
+
+#chat-title {
+  font-size: 16px; 
+  font-weight: 600; 
+  margin: 0;
+  flex: 1;
+}
+
+#chat-header div[style*="font-size: 11px"] {
+  font-size: 9px !important;
+  margin-top: 1px !important;
+}
+
+/* CONTROLS PANEL */
+#controls {
+  padding: 12px 16px; 
+  background: var(--card); 
+  border-bottom: 1px solid var(--border);
+  display: grid; 
+  grid-template-columns: 1fr 120px 80px; 
+  gap: 8px; 
+  align-items: center;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  max-height: 200px;
+}
+
+#controls.hidden {
+  max-height: 0;
+  padding: 0 16px;
+  opacity: 0;
+  border-bottom: none;
+  margin: 0;
+}
+
+#controls.visible {
+  max-height: 200px;
+  padding: 12px 16px;
+  opacity: 1;
+  margin: 0;
+}
+
+#model { 
+  width: 100%; 
+  padding: 8px 10px; 
+  border: 1px solid var(--border); 
+  border-radius: 8px; 
+}
+
+#help-btn, #theme-btn {
+  padding: 8px 12px; 
+  border: 0; 
+  border-radius: 8px; 
+  cursor: pointer; 
+  font-weight: 600;
+  background: var(--hover); 
+  font-size: 12px;
+}
+
+/* CONTROLS TOGGLE BUTTON */
+#controls-toggle-btn {
+  background: none; 
+  border: none; 
+  font-size: 16px;
+  cursor: pointer; 
+  padding: 8px; 
+  color: var(--text);
+  border-radius: 6px; 
+  transition: all 0.2s ease;
+  margin-left: 8px;
+}
+
+#controls-toggle-btn:hover {
+  background: var(--hover);
+}
+
+#chat {
+  flex: 1; 
+  padding: 16px; 
+  overflow-y: auto; 
+  background: var(--bg);
+}
+
+.msg { 
+  margin: 8px 0 16px; 
+  line-height: 1.5; 
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.role { 
+  font-weight: 700; 
+  min-width: 25px;
+}
+
+.ai .role { 
+  color: var(--primary); 
+}
+
+.you .role { 
+  color: var(--success); 
+}
+
+.msg-text {
+  flex: 1;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+#input-area {
+  padding: 16px; 
+  background: var(--card); 
+  border-top: 1px solid var(--border);
+  display: grid; 
+  grid-template-columns: 1fr auto; 
+  gap: 10px;
+}
+
+#user-input { 
+  padding: 12px; 
+  font-size: 16px; 
+  border: 1px solid var(--border); 
+  border-radius: 8px; 
+  background: var(--bg);
+}
+
+#send-btn { 
+  padding: 10px 16px; 
+  border: 0; 
+  border-radius: 8px; 
+  cursor: pointer; 
+  font-weight: 600; 
+  background: var(--success); 
+  color: #fff; 
+}
+
+#send-btn:disabled { 
+  opacity: .6; 
+  cursor: not-allowed; 
+}
+
+.muted { 
+  color: var(--muted); 
+}
+
+.bible-ref { 
+  color: var(--primary); 
+  text-decoration: underline; 
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bible-ref:hover {
+  background-color: rgba(26, 115, 232, 0.1);
+  border-radius: 3px;
+}
+
+a.inline { 
+  color: var(--primary); 
+  text-decoration: underline; 
+  word-break: break-all; 
+}
+
+/* MOBILE STYLES */
+@media (max-width: 768px) {
+  #chat-header {
+    padding: 12px 16px;
+  }
+  
+  #chat-title {
+    font-size: 14px;
+  }
+  
+  /* MOBILE CONTROLS */
+  #controls {
+    padding: 12px 16px;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    max-height: 180px;
+  }
+  
+  #controls.hidden {
+    max-height: 0;
+    padding: 0 16px;
+    margin: 0;
+    border: none;
+  }
+  
+  #controls.visible {
+    max-height: 180px;
+    padding: 12px 16px;
+  }
+  
+  #model {
+    width: 100%;
+    padding: 12px;
+    font-size: 14px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
+    padding-right: 30px;
+  }
+  
+  #controls-row2 {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  
+  #help-btn, #theme-btn {
+    flex: 1;
+    padding: 10px;
+    font-size: 14px;
+  }
+  
+  #controls-toggle-btn {
+    font-size: 20px;
+    padding: 10px;
+  }
+  
+  #chat {
+    padding: 12px;
+  }
+  
+  #input-area {
+    padding: 12px;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  #user-input {
+    padding: 12px;
+    font-size: 16px;
+  }
+  
+  #send-btn {
+    padding: 12px;
+    width: 100%;
+  }
+}
+
+/* MODAL */
+.modal-backdrop {
+  position: fixed; 
+  inset: 0; 
+  background: rgba(0,0,0,.4);
+  display: none; 
+  align-items: center; 
+  justify-content: center; 
+  z-index: 2000;
+}
+
+.modal {
+  width: min(600px, 90vw); 
+  max-height: 80vh; 
+  overflow-y: auto;
+  background: var(--card); 
+  border-radius: 12px; 
+  box-shadow: 0 12px 40px rgba(0,0,0,.3);
+  padding: 20px;
+}
+
+.modal h2 { 
+  margin: 0 0 16px; 
+  font-size: 18px; 
+}
+
+.modal-footer { 
+  display: flex; 
+  gap: 8px; 
+  justify-content: flex-end; 
+  margin-top: 16px; 
+}
+
+.btn-primary { 
+  background: var(--primary); 
+  color: #fff; 
+  border: 0; 
+  border-radius: 8px; 
+  padding: 10px 16px; 
+  font-weight: 600; 
+  cursor: pointer; 
+}
+
+.btn-secondary { 
+  background: var(--hover); 
+  color: var(--text); 
+  border: 0; 
+  border-radius: 8px; 
+  padding: 10px 16px; 
+  font-weight: 600; 
+  cursor: pointer; 
+}
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center; 
+  padding: 40px 20px; 
+  color: var(--muted);
+}
+
+.empty-state h3 {
+  margin: 0 0 8px; 
+  font-size: 16px; 
+  color: var(--text);
+}
+
+.empty-state p {
+  margin: 0; 
+  font-size: 14px; 
+  line-height: 1.4;
+}
+
+/* SCROLL */
+#chat::-webkit-scrollbar {
+  width: 6px;
+}
+
+#chat::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#chat::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+/* THEME TOGGLE */
+[data-theme="dark"] #model,
+[data-theme="dark"] #user-input {
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] #help-btn,
+[data-theme="dark"] #theme-btn {
+  background: var(--hover);
+  color: var(--text);
+}
+
+[data-theme="dark"] .modal {
+  background: var(--card);
+  color: var(--text);
+}
+
+[data-theme="dark"] .btn-secondary {
+  background: var(--hover);
+  color: var(--text);
+}
+
+/* BIBLE MODAL SPECIFIC STYLES */
+.verse-content {
+  line-height: 1.6;
+  font-size: 16px;
+  margin: 16px 0;
+}
+
+.verse-content b {
+  color: var(--primary);
+  margin-right: 4px;
+}
+
+/* LOADING STATE */
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  border-top-color: var(--primary);
+  animation: spin 1s ease-in-out infinite;
+  margin-left: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* CLEAR CHAT BUTTON */
+#clear-btn {
+  padding: 8px 12px; 
+  border: 0; 
+  border-radius: 8px; 
+  cursor: pointer; 
+  font-weight: 600;
+  background: var(--danger); 
+  color: white;
+  font-size: 12px;
+}
+</style>
+</head>
+<body>
+
+<main id="main-content">
+  <header id="chat-header">
+    <div style="flex: 1; min-width: 0;">
+      <h1 id="chat-title">Біблійний чат</h1>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">
+        Біблія Асистент • ЄХБ м.Суми, Україна
+      </div>
+    </div>
+    <button id="controls-toggle-btn" title="Показати налаштування">⚙️</button>
+  </header>
+
+  <section id="controls" class="visible">
+    <select id="model" title="Модель AI"></select>
+    <div id="controls-row2">
+      <button id="help-btn">🆘 Допомога</button>
+      <button id="theme-btn">🌙 Тема</button>
+      <button id="clear-btn">🗑️ Очистити</button>
+    </div>
+  </section>
+
+  <section id="chat" aria-live="polite"></section>
+
+  <section id="input-area">
+    <input id="user-input" type="text" placeholder="Напишіть запитання про Біблію..." />
+    <button id="send-btn">Надіслати</button>
+  </section>
+</main>
+
+<div id="help-backdrop" class="modal-backdrop">
+  <div class="modal">
+    <h2>📚 Допомога</h2>
+    <div style="line-height: 1.6; font-size: 14px;">
+      <h3>📖 Біблійні посилання</h3>
+      <p>• Клікніть на будь-яке посилання на Біблію щоб побачити текст</p>
+      <p>• Підтримуються формати: (Пс. 23:1), (Буття 1:1-3), (Ів. 3:16)</p>
+      <p>• Можна переглядати всю главу цілком</p>
+      
+      <h3>💡 Приклади питань</h3>
+      <p>• "Надрукуй Псалом 23 повністю"</p>
+      <p>• "Поясни притчу про блудного сина"</p>
+      <p>• "Порівняй Івана 3:16 у різних перекладах"</p>
+    </div>
+    <div class="modal-footer">
+      <button id="close-help" class="btn-primary">Зрозуміло!</button>
+    </div>
+  </div>
+</div>
+
+<div id="verse-modal" class="modal-backdrop">
+</div>
+
+<script>
+/* =========================
+  BIBLE REFERENCES HANDLING
+  ========================= */
+
+// Единый массив всех книг с альтернативными названиями
+const BOOK_NAMES = [
+  ["Буття", "Бут."],
+  ["Вихід", "Вих."],
+  ["Левіт", "Лев."],
+  ["Числа", "Чис."],
+  ["Второзаконня", "Втор."],
+  ["Ісуса Навина", "Нав.", "Ісус Навин"],
+  ["Суддів", "Суд.", "Судді"],
+  ["Рути", "Рут.", "Рут"],
+  ["1 Самуїлова", "1 Сам.", "1Сам."],
+  ["2 Самуїлова", "2 Сам.", "2Сам."],
+  ["1 Царів", "1 Цар.", "1Цар."],
+  ["2 Царів", "2 Цар.", "2Цар."],
+  ["1 Хронік", "1 Хр.", "1Хр."],
+  ["2 Хронік", "2 Хр.", "2Хр."],
+  ["Ездри", "Езд.", "Ездра", "Ездр."],
+  ["Неємії", "Неєм.", "Неемія", "Неем."],
+  ["Есфирі", "Есф.", "Естер", "Ест."],
+  ["Йова", "Йов."],
+  ["Псалми", "Пс.", "Псалом"],
+  ["Приповісті Соломонові", "Прип.", "Приповісті", "Пр."],
+  ["Екклезіаст", "Еккл.", "Екклезіяст", "Екл."],
+  ["Пісня Соломона", "Піс.", "Пісня над піснями", "Пісн."],
+  ["Ісаї", "Іс.", "Ісая"],
+  ["Єремії", "Єр."],
+  ["Плач Єремії", "Плач", "Пл.Єр."],
+  ["Єзекиїла", "Єз.", "Єзекіїль"],
+  ["Даниїла", "Дан.", "Даниїл"],
+  ["Осії", "Ос.", "Осія"],
+  ["Йоіла", "Йоіл.", "Йоіл"],
+  ["Амоса", "Ам.", "Амос"],
+  ["Авдія", "Авд.", "Овдій", "Овд."],
+  ["Йони", "Йона", "Йон."],
+  ["Михея", "Мих.", "Михей"],
+  ["Наума", "Наум"],
+  ["Авакума", "Ав.", "Авакум"],
+  ["Софонії", "Соф.", "Софонія"],
+  ["Аггея", "Агг.", "Огій", "Ог."],
+  ["Захарії", "Зах.", "Захарія"],
+  ["Малахії", "Мал.", "Малахія"],
+  ["Матвія", "Матв.", "Мт."],
+  ["Марка", "Марк.", "Мр."],
+  ["Луки", "Лук.", "Лк."],
+  ["Івана", "Ів."],
+  ["Дії апостолів", "Дії", "Дії Апостолів"],
+  ["Римлян", "Рим."],
+  ["1 Коринтян", "1 Кор.", "1Кор."],
+  ["2 Коринтян", "2 Кор.", "2Кор."],
+  ["Галатів", "Гал."],
+  ["Ефесян", "Еф."],
+  ["Филипян", "Фил.", "Филип'ян"],
+  ["Колоссян", "Кол.", "Колосян"],
+  ["1 Солунян", "1 Сол.", "1Сол."],
+  ["2 Солунян", "2 Сол.", "2Сол."],
+  ["1 Тимофія", "1 Тим.", "1Тим."],
+  ["2 Тимофія", "2 Тим.", "2Тим."],
+  ["Тита", "Тит"],
+  ["Филимона", "Филм.", "Флм."],
+  ["Євреїв", "Євр."],
+  ["Якова", "Як."],
+  ["1 Петра", "1 Пет.", "1Пет."],
+  ["2 Петра", "2 Пет.", "2Пет."],
+  ["1 Івана", "1 Ів.", "1Ів."],
+  ["2 Івана", "2 Ів.", "2Ів."],
+  ["3 Івана", "3 Ів.", "3Ів."],
+  ["Юди", "Юд."],
+  ["Об'явлення Івана Богослова", "Об'явл."]
+];
+
+// Создаем Map для быстрого поиска
+const BOOK_INDEX_MAP = new Map();
+BOOK_NAMES.forEach((bookVariants, index) => {
+  bookVariants.forEach(variant => {
+    BOOK_INDEX_MAP.set(variant, index + 1);
+    BOOK_INDEX_MAP.set(variant.replace(/\.$/, ""), index + 1);
+  });
+});
+
+// Формируем строку для промпта
+const BOOKS_LIST_FOR_PROMPT = BOOK_NAMES
+  .map(variants => variants.join(", "))
+  .join("; ");
+
+// Улучшенная функция поиска номера книги
+function getBookNumber(bookName) {
+  if (!bookName) return null;
+  
+  const normalized = bookName.trim();
+  
+  if (BOOK_INDEX_MAP.has(normalized)) {
+    return BOOK_INDEX_MAP.get(normalized);
+  }
+  
+  const withoutDot = normalized.replace(/\.$/, "");
+  if (BOOK_INDEX_MAP.has(withoutDot)) {
+    return BOOK_INDEX_MAP.get(withoutDot);
+  }
+  
+  const lowerNormalized = normalized.toLowerCase();
+  for (let [key, value] of BOOK_INDEX_MAP) {
+    if (key.toLowerCase() === lowerNormalized) {
+      return value;
+    }
+  }
+  
+  return null;
+}
+
+/* =========================
+  API & SETTINGS
+  ========================= */
+const encrypted = "Z3NrX1NUelQyS1FFQko3MGNDb1hDSllaV0dkeWIzRlk5OHJHN2xvWXUxSmc1SnV0VFZOSzIyVHY=";
+const apiKey = atob(encrypted);
+const API_BASE = "https://api.groq.com/openai/v1";
+const API_URL = `${API_BASE}/chat/completions`;
+const MODELS_URL = `${API_BASE}/models`;
+
+const DEFAULT_PROMPT = `Ти — асистент-богослов і знавець Біблії. Відповідай стисло, точно і з повагою.
+
+ВАЖЛИВО! При згадуванні біблійних книг використовуй ТІЛЬКИ ці назви:
+${BOOKS_LIST_FOR_PROMPT}
+
+Дотримуйся цих правил:
+- Завжди тримайся біблійної теми, уникай оффтопу.
+- Якщо наводиш цитати, вказуй книгу, розділ і вірші у форматі (Книга число:число).
+- За можливості пояснюй контекст (хто говорить, кому, у якій ситуації).
+- Використовуй переклад Огієнка як основний при цитуванні.
+- При згадуванні біблійних джерел ЗАВЖДИ використовуй формат (Книга число:число) у круглих дужках.
+- Коли доречно, додавай порівняння з іншими українськими перекладами і коротко коментуй різницю.
+- Коротко додавай богословські коментарі, чітко відділяючи їх від тексту Писання.
+- Відповідай українською мовою.
+- Подавай цитати з номерами віршів і завжди вказуй джерело у круглих дужках після цитати.
+- НЕ вигадуй інших назв книг, крім зазначених вище!`;
+
+const SETTINGS = {
+ systemPrompt: DEFAULT_PROMPT,
+ defaultModel: "meta-llama/llama-4-maverick-17b-128e-instruct",
+ temperature: 0.7,
+ maxTokens: 1500,
+ highlightRefs: true,
+ boldKeywords: true,
+ keywords: "віра, благодать, спасіння, любов, прощення"
+};
+
+/* =========================
+  GLOBAL STATE
+  ========================= */
+let messages = [{ role: "system", content: SETTINGS.systemPrompt }];
+let isLoading = false;
+
+// Функция показа модалки с библейским текстом
+function showVerseModal(title, content, bookNum, chapter) {
+  const modal = document.getElementById("verse-modal");
+  modal.style.display = "flex";
+  
+  // Проверяем, это диапазон глав или одна глава
+  const isChapterRange = title.includes('-') && !title.includes(':');
+  
+  modal.innerHTML = `
+    <div class="modal">
+      <h2>📖 ${title}</h2>
+      <div class="verse-content">${content}</div>
+      <div class="modal-footer">
+        ${!isChapterRange ? `<button class="btn-secondary" id="show-chapter">Показати всю главу</button>` : ''}
+        <button class="btn-primary" id="close-verse-modal">Закрити</button>
+      </div>
+    </div>`;
+  
+  modal.querySelector("#close-verse-modal").addEventListener("click", () => {
+    modal.style.display = "none";
+  });
+  
+  // Кнопка "Показать всю главу" только для стихов, не для диапазона глав
+  const showChapterBtn = modal.querySelector("#show-chapter");
+  if (showChapterBtn) {
+    showChapterBtn.addEventListener("click", async () => {
+      const button = showChapterBtn;
+      const originalText = button.textContent;
+      button.innerHTML = 'Завантаження... <span class="loading-spinner"></span>';
+      button.disabled = true;
+      
+      try {
+        const chapterText = await window.bible.getChapterText(bookNum, chapter);
+        const formatted = chapterText
+          .replace(/\s*(\d+\.)/g, "<br><b>$1</b>")
+          .replace(/^<br>/, "");
+        modal.querySelector(".verse-content").innerHTML = formatted;
+        modal.querySelector("h2").textContent = `📖 ${title.split(':')[0]} - вся глава ${chapter}`;
+        button.style.display = 'none';
+      } catch (error) {
+        button.textContent = 'Помилка завантаження';
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.disabled = false;
+        }, 2000);
+      }
+    });
+  }
+  
+  modal.addEventListener("click", (e) => {
+    if (e.target.id === "verse-modal") {
+      modal.style.display = "none";
+    }
+  });
+}
+
+// Обработчик кликов по библейским ссылкам
+function attachBibleRefHandlers() {
+  document.querySelectorAll(".bible-ref").forEach(el => {
+    if (el.dataset.bound) return;
+    el.dataset.bound = "1";
+    
+    el.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const refText = el.innerText.trim();
+      console.log("Clicked reference:", refText);
+      
+      // Проверяем формат ссылки - порядок важен!
+      // 1. Сначала проверяем стихи (содержит двоеточие)
+      const verseMatch = refText.match(/(.+?)\s*(\d+):([\d,\-\s]+)/);
+      // 2. Потом проверяем диапазон глав (БЕЗ двоеточия)
+      const chapterRangeMatch = !verseMatch && refText.match(/(.+?)\s*(\d+)-(\d+)$/);
+      // 3. Проверяем одиночную главу
+      const singleChapterMatch = !verseMatch && !chapterRangeMatch && refText.match(/(.+?)\s*(\d+)$/);
+      
+      if (verseMatch) {
+        // Обработка стихов (например, "Бут. 1:1-3", "Луки 15:11-32")
+        const [, bookNameRaw, chapter, verseStr] = verseMatch;
+        const bookName = bookNameRaw.trim().replace(/\.$/, '');
+        const bookNum = getBookNumber(bookName);
+        
+        if (!bookNum) { 
+          alert("Невідома книга: " + bookName); 
+          return; 
+        }
+
+        el.style.opacity = '0.6';
+        el.style.cursor = 'wait';
+
+        try {
+          let verses = [];
+          
+          if (verseStr.includes(",") || verseStr.includes("-")) {
+            verses = await window.bible.getVersesRange(bookNum, chapter, verseStr);
+          } else {
+            const v = await window.bible.getVerse(bookNum, chapter, verseStr);
+            if (v) verses = [v];
+          }
+
+          if (verses.length) {
+            const html = verses.map(v => `<b>${v.number}.</b> ${v.text}`).join("<br>");
+            showVerseModal(`${bookName} ${chapter}:${verseStr}`, html, bookNum, chapter);
+          } else {
+            alert("Стих(и) не знайдено");
+          }
+        } catch (error) {
+          console.error("Error loading bible verse:", error);
+          alert("Помилка завантаження тексту Біблії");
+        } finally {
+          el.style.opacity = '1';
+          el.style.cursor = 'pointer';
+        }
+        
+      } else if (chapterRangeMatch) {
+        // Обработка диапазона глав (например, "Бут. 1-3")
+        const [, bookNameRaw, startChapter, endChapter] = chapterRangeMatch;
+        const bookName = bookNameRaw.trim().replace(/\.$/, ''); // убираем точку
+        const bookNum = getBookNumber(bookName);
+        
+        if (!bookNum) { 
+          alert("Невідома книга: " + bookName); 
+          return; 
+        }
+
+        el.style.opacity = '0.6';
+        el.style.cursor = 'wait';
+
+        try {
+          let allChaptersText = '';
+          const start = parseInt(startChapter);
+          const end = parseInt(endChapter);
+          
+          for (let chapter = start; chapter <= end; chapter++) {
+            const chapterText = await window.bible.getChapterText(bookNum, chapter);
+            const formatted = chapterText
+              .replace(/\s*(\d+\.)/g, "<br><b>$1</b>")
+              .replace(/^<br>/, "");
+            allChaptersText += `<h3>Глава ${chapter}</h3>${formatted}<br><br>`;
+          }
+          
+          showVerseModal(`${bookName} ${startChapter}-${endChapter}`, allChaptersText, bookNum, start);
+        } catch (error) {
+          console.error("Error loading bible chapters:", error);
+          alert("Помилка завантаження тексту Біблії");
+        } finally {
+          el.style.opacity = '1';
+          el.style.cursor = 'pointer';
+        }
+        
+      } else if (singleChapterMatch) {
+        // Обработка одиночной главы (например, "Бут. 1")
+        const [, bookNameRaw, chapter] = singleChapterMatch;
+        const bookName = bookNameRaw.trim().replace(/\.$/, '');
+        const bookNum = getBookNumber(bookName);
+        
+        if (!bookNum) { 
+          alert("Невідома книга: " + bookName); 
+          return; 
+        }
+
+        el.style.opacity = '0.6';
+        el.style.cursor = 'wait';
+
+        try {
+          const chapterText = await window.bible.getChapterText(bookNum, chapter);
+          const formatted = chapterText
+            .replace(/\s*(\d+\.)/g, "<br><b>$1</b>")
+            .replace(/^<br>/, "");
+          showVerseModal(`${bookName} ${chapter}`, formatted, bookNum, chapter);
+        } catch (error) {
+          console.error("Error loading bible chapter:", error);
+          alert("Помилка завантаження тексту Біблії");
+        } finally {
+          el.style.opacity = '1';
+          el.style.cursor = 'pointer';
+        }
+        
+      } else {
+        // Если формат не распознан
+        console.log("Unrecognized format:", refText);
+        alert("Не вдалося розпізнати формат посилання: " + refText);
+      }
+    });
+  });
+}
+
+/* =========================
+  UTILITY FUNCTIONS
+  ========================= */
+function escapeHTML(str) {
+ return (str ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+}
+
+function linkify(htmlEscaped) {
+ return htmlEscaped.replace(/(https?:\/\/[^\s)<>"]+)/g, '<a class="inline" href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+}
+
+function highlightBibleRefs(htmlEscaped) {
+  // Используем улучшенное регулярное выражение из рабочего примера
+  // Поддерживает: (Бут. 1:1), (Бут. 1:1-3), (Бут. 1-3), множественные ссылки в скобках
+  const bibleRefRegex = /\(?(?:(?:[1-3]\s)?[А-ЯІЄҐ][а-яіїєґ']+(?:\s[А-ЯІЄҐ][а-яіїєґ']+)*\.?\s*\d+(?::\d+(?:-\d+)?|-\d+)?(?:\s*,\s*(?:[1-3]\s)?[А-ЯІЄҐ][а-яіїєґ']+(?:\s[А-ЯІЄҐ][а-яіїєґ']+)*\.?\s*\d+(?::\d+(?:-\d+)?|-\d+)?)*)\)?/g;
+  
+  return htmlEscaped.replace(bibleRefRegex, (match) => {
+    // Проверяем, не является ли уже выделенной частью (избегаем дублирования)
+    if (match.includes('<span class="bible-ref">')) {
+      return match;
+    }
+    
+    // Обрабатываем множественные ссылки в скобках
+    if (match.includes(',')) {
+      // Если есть запятые, разбиваем на отдельные ссылки
+      const content = match.replace(/[()]/g, ''); // убираем скобки
+      const refs = content.split(',').map(ref => ref.trim());
+      const highlightedRefs = refs.map(ref => `<span class="bible-ref">${ref}</span>`).join(', ');
+      return match.startsWith('(') ? `(${highlightedRefs})` : highlightedRefs;
+    } else {
+      // Одиночная ссылка
+      const cleanRef = match.replace(/[()]/g, '');
+      return match.startsWith('(') && match.endsWith(')') 
+        ? `(<span class="bible-ref">${cleanRef}</span>)`
+        : `<span class="bible-ref">${match}</span>`;
+    }
+  });
+}
+
+function boldifyKeywords(htmlEscaped, keywordsCSV) {
+ if (!keywordsCSV) return htmlEscaped;
+ const parts = keywordsCSV.split(",").map(s => s.trim()).filter(Boolean);
+ if (!parts.length) return htmlEscaped;
+ const words = parts.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+ const re = new RegExp(`\\b(${words.join("|")})\\b`, "gi");
+ return htmlEscaped.replace(re, '<strong>$1</strong>');
+}
+
+function saferFormatAssistant(raw) {
+ let out = escapeHTML(raw);
+ out = linkify(out);
+ if (SETTINGS.highlightRefs) out = highlightBibleRefs(out);
+ if (SETTINGS.boldKeywords) out = boldifyKeywords(out, SETTINGS.keywords || "");
+ return out.replace(/\n/g, "<br>");
+}
+
+/* =========================
+  UI FUNCTIONS
+  ========================= */
+function appendMsg(role, htmlOrText, alreadySafeHTML = false) {
+ const chat = document.getElementById('chat');
+ const div = document.createElement('div');
+ div.className = `msg ${role === 'assistant' ? 'ai' : 'you'}`;
+ const safe = alreadySafeHTML ? htmlOrText : escapeHTML(htmlOrText);
+ div.innerHTML = `<span class="role">${role === 'assistant' ? 'AI' : 'Ви'}:</span> <span class="msg-text">${safe}</span>`;
+ 
+ chat.appendChild(div);
+ chat.scrollTop = chat.scrollHeight;
+ 
+ if (role === 'assistant') {
+   setTimeout(() => {
+     attachBibleRefHandlers();
+   }, 10);
+ }
+}
+
+function clearChat() {
+  document.getElementById('chat').innerHTML = '';
+  messages = [{ role: "system", content: SETTINGS.systemPrompt }];
+  appendMsg("assistant", 
+    `<span class="muted">🙏 Вітаю! Я - ваш AI асистент для вивчення Біблії. Задавайте будь-які питання про Святе Письмо!</span>`, 
+    true
+  );
+}
+
+/* =========================
+  MODALS
+  ========================= */
+function showHelpModal() {
+ document.getElementById('help-backdrop').style.display = 'flex';
+}
+
+function hideHelpModal() {
+ document.getElementById('help-backdrop').style.display = 'none';
+}
+
+/* =========================
+  API FUNCTIONS
+  ========================= */
+async function loadModels() {
+ const modelSel = document.getElementById('model');
+ modelSel.innerHTML = "";
+ try {
+   const res = await fetch(MODELS_URL, { headers: { "Authorization": `Bearer ${apiKey}` }});
+   if (!res.ok) throw new Error(`HTTP ${res.status}`);
+   const data = await res.json();
+   const models = data?.data || [];
+
+   models.forEach(m => {
+     const opt = document.createElement('option');
+     opt.value = m.id;
+     opt.textContent = m.id;
+     modelSel.appendChild(opt);
+   });
+
+   if ([...modelSel.options].some(o => o.value === SETTINGS.defaultModel)) {
+     modelSel.value = SETTINGS.defaultModel;
+   } else if (modelSel.options.length > 0) {
+     modelSel.selectedIndex = 0;
+   }
+
+ } catch (e) {
+   modelSel.innerHTML = `<option value="">Помилка завантаження моделей</option>`;
+   console.error("Model loading error:", e);
+ }
+}
+
+async function sendMessage() {
+ if (isLoading) return;
+ const input = document.getElementById('user-input');
+ const modelSel = document.getElementById('model');
+ const msg = (input.value || "").trim();
+ if (!msg) return;
+
+ messages.push({ role: "user", content: msg });
+ appendMsg("user", msg);
+ input.value = "";
+ isLoading = true;
+ document.getElementById('send-btn').disabled = true;
+
+ try {
+   const res = await fetch(API_URL, {
+     method: "POST",
+     headers: {
+       "Content-Type": "application/json",
+       "Authorization": `Bearer ${apiKey}`
+     },
+     body: JSON.stringify({
+       model: modelSel.value || SETTINGS.defaultModel,
+       messages: messages,
+       temperature: SETTINGS.temperature,
+       max_tokens: SETTINGS.maxTokens
+     })
+   });
+
+   if (!res.ok) {
+     const t = await res.text().catch(() => "");
+     throw new Error(`HTTP ${res.status}: ${t || res.statusText}`);
+   }
+
+   const data = await res.json();
+   const reply = data?.choices?.[0]?.message?.content || "Немає відповіді.";
+   
+   messages.push({ role: "assistant", content: reply });
+   const formatted = saferFormatAssistant(reply);
+   appendMsg("assistant", formatted, true);
+
+   hideControlsAfterFirstMessage();
+
+ } catch (err) {
+   appendMsg("assistant", `<span class="muted">Помилка: ${escapeHTML(err.message)}</span>`, true);
+ } finally {
+   isLoading = false;
+   document.getElementById('send-btn').disabled = false;
+ }
+}
+
+/* =========================
+  THEME MANAGEMENT
+  ========================= */
+function toggleTheme() {
+ const currentTheme = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+ applyTheme(currentTheme);
+ localStorage.setItem('theme', currentTheme);
+}
+
+function applyTheme(theme) {
+ if (theme === 'dark') {
+   document.body.setAttribute('data-theme', 'dark');
+   document.getElementById('theme-btn').textContent = '☀️ Тема';
+ } else {
+   document.body.removeAttribute('data-theme');
+   document.getElementById('theme-btn').textContent = '🌙 Тема';
+ }
+}
+
+/* =========================
+  CONTROLS MANAGEMENT
+  ========================= */
+let controlsVisible = true;
+let firstMessageSent = false;
+
+function toggleControls() {
+  const controls = document.getElementById('controls');
+  const toggleBtn = document.getElementById('controls-toggle-btn');
+  
+  controlsVisible = !controlsVisible;
+  
+  if (controlsVisible) {
+    controls.classList.remove('hidden');
+    controls.classList.add('visible');
+    toggleBtn.textContent = '⚙️';
+    toggleBtn.title = 'Сховати налаштування';
+  } else {
+    controls.classList.remove('visible');
+    controls.classList.add('hidden');
+    toggleBtn.textContent = '🔧';
+    toggleBtn.title = 'Показати налаштування';
+  }
+}
+
+function hideControlsAfterFirstMessage() {
+  if (!firstMessageSent && controlsVisible) {
+    firstMessageSent = true;
+    setTimeout(() => {
+      toggleControls();
+    }, 1000);
+  }
+}
+
+/* =========================
+  PUBLIC API
+  ========================= */
+window.BibleChatAPI = {
+ updateSettings: function(newSettings) {
+   Object.assign(SETTINGS, newSettings);
+   if (messages[0]?.role === 'system') {
+     messages[0].content = SETTINGS.systemPrompt;
+   }
+ },
+ 
+ getSettings: () => ({...SETTINGS}),
+ setTheme: applyTheme,
+ toggleTheme,
+ 
+ sendMessage: function(message) {
+   document.getElementById('user-input').value = message;
+   sendMessage();
+ },
+ 
+ clearChat: clearChat,
+ 
+ getMessages: () => [...messages],
+ 
+ setMessages: function(newMessages) {
+   messages = newMessages;
+   const chat = document.getElementById('chat');
+   chat.innerHTML = '';
+   const userMessages = messages.filter(msg => msg.role !== 'system');
+   userMessages.forEach(msg => {
+     if (msg.role === 'user') {
+       appendMsg('user', msg.content);
+     } else if (msg.role === 'assistant') {
+       const formatted = saferFormatAssistant(msg.content);
+       appendMsg('assistant', formatted, true);
+     }
+   });
+ }
+};
+
+/* =========================
+  EVENT LISTENERS
+  ========================= */
+document.addEventListener('DOMContentLoaded', async () => {
+ const savedTheme = localStorage.getItem('theme') || 'light';
+ applyTheme(savedTheme);
+ 
+ // Показываем приветственное сообщение
+ clearChat();
+ 
+ // Основные кнопки
+ document.getElementById('send-btn').addEventListener('click', sendMessage);
+ document.getElementById('user-input').addEventListener('keypress', (e) => {
+   if (e.key === 'Enter') sendMessage();
+ });
+ 
+ document.getElementById('theme-btn').addEventListener('click', toggleTheme);
+ document.getElementById('help-btn').addEventListener('click', showHelpModal);
+ document.getElementById('clear-btn').addEventListener('click', () => {
+   if (confirm('Очистити історію чату?')) {
+     clearChat();
+   }
+ });
+ 
+ // Модальные окна
+ document.getElementById('close-help').addEventListener('click', hideHelpModal);
+ document.getElementById('help-backdrop').addEventListener('click', (e) => {
+   if (e.target.id === 'help-backdrop') hideHelpModal();
+ });
+ 
+ // Закрытие модалок по Escape
+ document.addEventListener('keydown', (e) => {
+   if (e.key === 'Escape') {
+     // Закрываем модалку помощи
+     const helpModal = document.getElementById('help-backdrop');
+     if (helpModal.style.display === 'flex') {
+       helpModal.style.display = 'none';
+     }
+     
+     // Закрываем модалку с библейскими стихами
+     const verseModal = document.getElementById('verse-modal');
+     if (verseModal.style.display === 'flex') {
+       verseModal.style.display = 'none';
+     }
+   }
+ });
+ 
+ // Управление панелью контролов
+ document.getElementById('controls-toggle-btn').addEventListener('click', toggleControls);
+ 
+ // Загружаем модели
+ await loadModels();
+ 
+ // Фокус на input
+ document.getElementById('user-input').focus();
+ 
+ // Ждем загрузки Bible API
+ if (typeof window.bible === 'undefined') {
+   console.log('Ожидание загрузки Bible API...');
+   const checkBibleAPI = setInterval(() => {
+     if (typeof window.bible !== 'undefined') {
+       console.log('Bible API загружен успешно!');
+       clearInterval(checkBibleAPI);
+     }
+   }, 500);
+ } else {
+   console.log('Bible API уже доступен!');
+ }
+ 
+ console.log('BibleChat готов!');
+ console.log('API доступен через window.BibleChatAPI');
+ 
+ // Отладочная информация
+ console.log('Загружено книг:', BOOK_NAMES.length);
+ console.log('Индексная карта содержит:', BOOK_INDEX_MAP.size, 'записей');
+});
+
+/* =========================
+  PUBLIC API
+  ========================= */
+window.BibleChatAPI = {
+ updateSettings: function(newSettings) {
+   Object.assign(SETTINGS, newSettings);
+   if (messages[0]?.role === 'system') {
+     messages[0].content = SETTINGS.systemPrompt;
+   }
+ },
+ 
+ getSettings: () => ({...SETTINGS}),
+ setTheme: applyTheme,
+ toggleTheme,
+ 
+ sendMessage: function(message) {
+   document.getElementById('user-input').value = message;
+   sendMessage();
+ },
+ 
+ clearChat: clearChat,
+ 
+ getMessages: () => [...messages],
+ 
+ setMessages: function(newMessages) {
+   messages = newMessages;
+   const chat = document.getElementById('chat');
+   chat.innerHTML = '';
+   const userMessages = messages.filter(msg => msg.role !== 'system');
+   userMessages.forEach(msg => {
+     if (msg.role === 'user') {
+       appendMsg('user', msg.content);
+     } else if (msg.role === 'assistant') {
+       const formatted = saferFormatAssistant(msg.content);
+       appendMsg('assistant', formatted, true);
+     }
+   });
+ }
+};
+
+/* =========================
+  EVENT LISTENERS
+  ========================= */
+document.addEventListener('DOMContentLoaded', async () => {
+ const savedTheme = localStorage.getItem('theme') || 'light';
+ applyTheme(savedTheme);
+ 
+ // Показываем приветственное сообщение
+ clearChat();
+ 
+ // Основные кнопки
+ document.getElementById('send-btn').addEventListener('click', sendMessage);
+ document.getElementById('user-input').addEventListener('keypress', (e) => {
+   if (e.key === 'Enter') sendMessage();
+ });
+ 
+ document.getElementById('theme-btn').addEventListener('click', toggleTheme);
+ document.getElementById('help-btn').addEventListener('click', showHelpModal);
+ document.getElementById('clear-btn').addEventListener('click', () => {
+   if (confirm('Очистити історію чату?')) {
+     clearChat();
+   }
+ });
+ 
+ // Модальные окна
+ document.getElementById('close-help').addEventListener('click', hideHelpModal);
+ document.getElementById('help-backdrop').addEventListener('click', (e) => {
+   if (e.target.id === 'help-backdrop') hideHelpModal();
+ });
+ 
+ // Закрытие модалок по Escape
+ document.addEventListener('keydown', (e) => {
+   if (e.key === 'Escape') {
+     // Закрываем модалку помощи
+     const helpModal = document.getElementById('help-backdrop');
+     if (helpModal.style.display === 'flex') {
+       helpModal.style.display = 'none';
+     }
+     
+     // Закрываем модалку с библейскими стихами
+     const verseModal = document.getElementById('verse-modal');
+     if (verseModal.style.display === 'flex') {
+       verseModal.style.display = 'none';
+     }
+   }
+ });
+ 
+ // Управление панелью контролов
+ document.getElementById('controls-toggle-btn').addEventListener('click', toggleControls);
+ 
+ // Загружаем модели
+ await loadModels();
+ 
+ // Фокус на input
+ document.getElementById('user-input').focus();
+ 
+ // Ждем загрузки Bible API
+ if (typeof window.bible === 'undefined') {
+   console.log('Ожидание загрузки Bible API...');
+   const checkBibleAPI = setInterval(() => {
+     if (typeof window.bible !== 'undefined') {
+       console.log('Bible API загружен успешно!');
+       clearInterval(checkBibleAPI);
+     }
+   }, 500);
+ } else {
+   console.log('Bible API уже доступен!');
+ }
+ 
+ console.log('BibleChat готов!');
+ console.log('API доступен через window.BibleChatAPI');
+ 
+ // Отладочная информация
+ console.log('Загружено книг:', BOOK_NAMES.length);
+ console.log('Индексная карта содержит:', BOOK_INDEX_MAP.size, 'записей');
+});
+
+</script>
+
+</body>
+</html>
