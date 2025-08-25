@@ -1,0 +1,711 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Біблія Асистент - Спрощена система</title>
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --bg: #f8f9fa;
+            --card: #ffffff;
+            --text: #202124;
+            --muted: #5f6368;
+            --border: #dadce0;
+            --hover: #f1f3f4;
+            --success: #34a853;
+            --danger: #ea4335;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Боковая панель */
+        .sidebar {
+            width: 320px;
+            background: var(--card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-280px);
+            width: 40px;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .collapse-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .collapse-btn:hover {
+            background: var(--hover);
+        }
+
+        /* Единая строка поиска */
+        .search-container {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-box {
+            position: relative;
+            width: 100%;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px 12px 40px;
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            font-size: 14px;
+            outline: none;
+            background: var(--hover);
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            background: white;
+            border-color: var(--primary);
+            box-shadow: 0 2px 5px 1px rgba(64,60,67,.16);
+        }
+
+        .search-placeholder {
+            position: absolute;
+            left: 40px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+            font-size: 14px;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .search-input:focus + .search-placeholder,
+        .search-input:not(:placeholder-shown) + .search-placeholder {
+            opacity: 0;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+            font-size: 16px;
+        }
+
+        .search-results {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-top: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .search-results.active {
+            display: block;
+        }
+
+        .search-result {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+        }
+
+        .search-result:hover {
+            background: var(--hover);
+        }
+
+        .search-result:last-child {
+            border-bottom: none;
+        }
+
+        .result-type {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .result-title {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .result-preview {
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.3;
+        }
+
+        /* Табы */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            flex: 1;
+            background: none;
+            border: none;
+            padding: 12px 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--muted);
+            position: relative;
+        }
+
+        .tab.active {
+            color: var(--primary);
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary);
+        }
+
+        /* Содержимое табов */
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .panel {
+            display: none;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        /* Элементы списков */
+        .list-item {
+            padding: 12px;
+            margin-bottom: 4px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .list-item:hover {
+            border-color: var(--primary);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .list-item.selected {
+            border-color: var(--primary);
+            background: rgba(26, 115, 232, 0.04);
+        }
+
+        .item-actions {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .list-item:hover .item-actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            background: var(--hover);
+            border: none;
+            border-radius: 4px;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: var(--border);
+            transform: scale(1.1);
+        }
+
+        .action-btn.edit {
+            color: var(--primary);
+        }
+
+        .action-btn.delete {
+            color: var(--danger);
+        }
+
+        .action-btn.delete:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* Подсветка поиска */
+        mark {
+            background: rgba(255, 204, 0, 0.3);
+            color: inherit;
+            padding: 1px 2px;
+            border-radius: 2px;
+        }
+
+        .item-title {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .item-meta {
+            font-size: 12px;
+            color: var(--muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .item-category {
+            background: var(--primary);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .category-study { background: #34a853; }
+        .category-prayer { background: #9c27b0; }
+        .category-sermon { background: #ff9800; }
+        .category-personal { background: #e91e63; }
+
+        /* Основная область */
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            background: var(--bg);
+            position: relative;
+        }
+
+        .menu-toggle {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 16px;
+            display: none;
+        }
+
+        .main-content.sidebar-collapsed .menu-toggle {
+            display: block;
+        }
+
+        /* Кнопки действий */
+        .action-buttons {
+            padding: 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--hover);
+            color: var(--text);
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Пустое состояние */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--muted);
+        }
+
+        .empty-state h3 {
+            margin: 0 0 8px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .empty-state p {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                left: 0;
+                top: 0;
+                height: 100%;
+                z-index: 1000;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content .menu-toggle {
+                display: block;
+            }
+
+            .overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 999;
+                display: none;
+            }
+
+            .overlay.active {
+                display: block;
+            }
+        }
+
+        /* Модальные окна */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group.hidden {
+            display: none;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+
+        .form-input, .form-textarea, .form-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Боковая панель -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2 class="sidebar-title">📖 Біблія Асистент</h2>
+                <button class="collapse-btn" onclick="toggleSidebar()">‹</button>
+            </div>
+
+            <!-- Поиск в активной вкладке -->
+            <div class="search-container">
+                <div class="search-box">
+                    <div class="search-icon">🔍</div>
+                    <input type="text" 
+                           class="search-input" 
+                           id="contextSearch"
+                           oninput="performContextSearch(this.value)"
+                           placeholder="">
+                    <div class="search-placeholder" id="searchPlaceholder">Пошук у сесіях...</div>
+                </div>
+                <div class="search-results" id="searchResults"></div>
+            </div>
+
+            <!-- Табы -->
+            <div class="tabs">
+                <button class="tab active" data-tab="sessions" onclick="switchTab('sessions')">
+                    📝 Сесії
+                </button>
+                <button class="tab" data-tab="notes" onclick="switchTab('notes')">
+                    🔖 Нотатки
+                </button>
+            </div>
+
+            <!-- Содержимое -->
+            <div class="tab-content">
+                <!-- Панель сессий -->
+                <div class="panel active" id="sessions-panel">
+                    <div id="sessions-list"></div>
+                    <div class="empty-state" id="sessions-empty" style="display: none;">
+                        <h3>Немає сесій</h3>
+                        <p>Створіть нову сесію для початку роботи</p>
+                    </div>
+                </div>
+
+                <!-- Панель заметок -->
+                <div class="panel" id="notes-panel">
+                    <div id="notes-list"></div>
+                    <div class="empty-state" id="notes-empty" style="display: none;">
+                        <h3>Немає нотаток</h3>
+                        <p>Створіть нотатку або закладку</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Кнопки действий -->
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="createNew()">
+                    ➕ Створити
+                </button>
+                <button class="btn btn-secondary" onclick="showOptions()">
+                    📁 Файл
+                </button>
+            </div>
+        </div>
+
+        <!-- Основная область -->
+        <div class="main-content" id="mainContent">
+            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            
+            <h1>Біблія Асистент</h1>
+            <p>ЄХБ м.Суми, Україна</p>
+            
+            <!-- Здесь будет основной чат -->
+            <div id="chatArea">
+                <div style="padding: 40px; text-align: center; color: #666;">
+                    <h3>Вітаємо у Біблійному Асистенті!</h3>
+                    <p>Почніть нову розмову або виберіть існуючу сесію з бокової панелі.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Оверлей для мобильных -->
+    <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+    <!-- Модальное окно создания -->
+    <div class="modal" id="createModal">
+        <div class="modal-content">
+            <h3>Створити нову</h3>
+            <div class="form-group">
+                <label class="form-label">Тип:</label>
+                <select class="form-select" id="createType" onchange="toggleCreateFields()">
+                    <option value="session">📝 Нова сесія</option>
+                    <option value="note">📖 Нотатка</option>
+                    <option value="bookmark">🔖 Закладка</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Назва:</label>
+                <input type="text" class="form-input" id="createTitle" placeholder="Введіть назву...">
+            </div>
+
+            <div id="noteFields" style="display: none;">
+                <div class="form-group">
+                    <label class="form-label">Категорія:</label>
+                    <select class="form-select" id="createCategory">
+                        <option value="study">📖 Вивчення</option>
+                        <option value="prayer">🙏 Молитва</option>
+                        <option value="sermon">🎤 Проповідь</option>
+                        <option value="personal">💭 Особисте</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Біблійна посилання:</label>
+                    <input type="text" class="form-input" id="createReference" placeholder="напр: Пс. 23:1-6">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Зміст:</label>
+                    <textarea class="form-textarea" id="createContent" placeholder="Введіть текст..."></textarea>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Скасувати</button>
+                <button class="btn btn-primary" onclick="createItem()">Створити</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно редактирования сессии -->
+    <div class="modal" id="editSessionModal">
+        <div class="modal-content">
+            <h3>Редагувати сесію</h3>
+            <div class="form-group">
+                <label class="form-label">Назва:</label>
+                <input type="text" class="form-input" id="editSessionTitle" placeholder="Введіть назву сесії...">
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Скасувати</button>
+                <button class="btn btn-danger" onclick="confirmDeleteCurrentSession()">Видалити</button>
+                <button class="btn btn-primary" onclick="saveSessionEdit()">Зберегти</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно редактирования заметки -->
+    <div class="modal" id="editNoteModal">
+        <div class="modal-content">
+            <h3>Редагувати нотатку</h3>
+            <div class="form-group">
+                <label class="form-label">Назва:</label>
+                <input type="text" class="form-input" id="editNoteTitle" placeholder="Введіть назву...">
+            </div>
+            
+            <div id="editNoteFields">
+                <div class="form-group">
+                    <label class="form-label">Категорія:</label>
+                    <select class="form-select" id="editNoteCategory" onchange="toggleEditNoteFields()">
+                        <option value="">🔖 Закладка</option>
+                        <option value="study">📖 Вивчення</option>
+                        <option value="prayer">🙏 Молитва</option>
+                        <option value="sermon">🎤 Проповідь</option>
+                        <option value="personal">💭 Особисте</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="editNoteReferenceGroup">
+                    <label class="form-label">Біблійна посилання:</label>
+                    <input type="text" class="form-input" id="editNoteReference" placeholder="напр: Пс. 23:1-6">
+                </div>
+
+                <div class="form-group" id="editNoteContentGroup">
+                    <label class="form-label">Зміст:</label>
+                    <textarea class="form-textarea" id="editNoteContent" placeholder="Введіть текст..."></textarea>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Скасувати</button>
+                <button class="btn btn-danger" onclick="confirmDeleteCurrentNote()">Видалити</button>
+                <button class="btn btn-primary" onclick="saveNoteEdit()">Зберегти</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="optionsModal">
+        <div class="modal-content">
+            <h3>Опції</h3>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button class="btn btn-secondary" onclick="exportData()">📤 Експорт даних</button>
+                <button class="btn btn-secondary" onclick="importData()">📥 Імпорт даних</button>
+                <button class="btn btn-secondary" onclick="clearAll()">🗑️ Очистити все</button>
+                <button class="btn btn-primary" onclick="closeModal()">Закрити</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+ 
+    </script>
+</body>
+</html>
