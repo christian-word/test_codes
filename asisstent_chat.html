@@ -1,0 +1,1841 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Біблійний Чат - Повна Версія</title>
+    
+    <!-- Подключаем Bible API -->
+    <script src="https://christian-word.github.io/bible-engine/bible-API.js"></script>
+
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --bg: #f8f9fa;
+            --card: #ffffff;
+            --text: #202124;
+            --muted: #5f6368;
+            --border: #dadce0;
+            --hover: #f1f3f4;
+            --success: #34a853;
+            --danger: #ea4335;
+            --accent: #ffcc00;
+        }
+
+        [data-theme="dark"] {
+            --bg: #1a1a1a;
+            --card: #2d2d2d;
+            --text: #ffffff;
+            --muted: #aaaaaa;
+            --border: #444;
+            --hover: #383838;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* БОКОВАЯ ПАНЕЛЬ */
+        .sidebar {
+            width: 320px;
+            background: var(--card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-280px);
+            width: 40px;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .collapse-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .collapse-btn:hover {
+            background: var(--hover);
+        }
+
+        /* ПОИСК */
+        .search-container {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-box {
+            position: relative;
+            width: 100%;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px 12px 40px;
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            font-size: 14px;
+            outline: none;
+            background: var(--hover);
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            background: white;
+            border-color: var(--primary);
+            box-shadow: 0 2px 5px 1px rgba(64,60,67,.16);
+        }
+
+        .search-placeholder {
+            position: absolute;
+            left: 40px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+            font-size: 14px;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .search-input:focus + .search-placeholder,
+        .search-input:not(:placeholder-shown) + .search-placeholder {
+            opacity: 0;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+            font-size: 16px;
+        }
+
+        .search-results {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-top: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .search-results.active {
+            display: block;
+        }
+
+        .search-result {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+        }
+
+        .search-result:hover {
+            background: var(--hover);
+        }
+
+        .search-result:last-child {
+            border-bottom: none;
+        }
+
+        .result-type {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .result-title {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .result-preview {
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.3;
+        }
+
+        /* ТАБЫ */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            flex: 1;
+            background: none;
+            border: none;
+            padding: 12px 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--muted);
+            position: relative;
+        }
+
+        .tab.active {
+            color: var(--primary);
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary);
+        }
+
+        /* СОДЕРЖИМОЕ ТАБОВ */
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .panel {
+            display: none;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        /* ЭЛЕМЕНТЫ СПИСКОВ */
+        .list-item {
+            padding: 12px;
+            margin-bottom: 4px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .list-item:hover {
+            border-color: var(--primary);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .list-item.selected {
+            border-color: var(--primary);
+            background: rgba(26, 115, 232, 0.04);
+        }
+
+        .item-actions {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .list-item:hover .item-actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            background: var(--hover);
+            border: none;
+            border-radius: 4px;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: var(--border);
+            transform: scale(1.1);
+        }
+
+        .action-btn.edit {
+            color: var(--primary);
+        }
+
+        .action-btn.delete {
+            color: var(--danger);
+        }
+
+        .action-btn.delete:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .item-title {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .item-meta {
+            font-size: 12px;
+            color: var(--muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .item-category {
+            background: var(--primary);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .category-study { background: #34a853; }
+        .category-prayer { background: #9c27b0; }
+        .category-sermon { background: #ff9800; }
+        .category-personal { background: #e91e63; }
+
+        /* КНОПКИ ДЕЙСТВИЙ */
+        .action-buttons {
+            padding: 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--hover);
+            color: var(--text);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        /* ПУСТОЕ СОСТОЯНИЕ */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--muted);
+        }
+
+        .empty-state h3 {
+            margin: 0 0 8px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .empty-state p {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        /* ОСНОВНАЯ ОБЛАСТЬ ЧАТА */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .menu-toggle {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 16px;
+            display: none;
+            z-index: 10;
+        }
+
+        .main-content.sidebar-collapsed .menu-toggle {
+            display: block;
+        }
+
+        /* ЗАГОЛОВОК ЧАТА */
+        .chat-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--card);
+            gap: 12px;
+        }
+
+        .chat-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+            flex: 1;
+        }
+
+        .session-info {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .controls-toggle {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 8px;
+            color: var(--text);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .controls-toggle:hover {
+            background: var(--hover);
+        }
+
+        /* ПАНЕЛЬ УПРАВЛЕНИЯ */
+        .controls {
+            padding: 12px 20px;
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            display: grid;
+            grid-template-columns: 1fr 120px 80px 80px;
+            gap: 8px;
+            align-items: center;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            max-height: 200px;
+        }
+
+        .controls.hidden {
+            max-height: 0;
+            padding: 0 20px;
+            opacity: 0;
+            border-bottom: none;
+        }
+
+        .model-select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .control-btn {
+            padding: 8px 12px;
+            border: 0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            background: var(--hover);
+            font-size: 12px;
+        }
+
+        /* ОБЛАСТЬ ЧАТА */
+        .chat-area {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: var(--bg);
+        }
+
+        .chat-message {
+            margin: 8px 0 16px;
+            line-height: 1.5;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            position: relative;
+        }
+
+        .message-role {
+            font-weight: 700;
+            min-width: 25px;
+        }
+
+        .ai .message-role {
+            color: var(--primary);
+        }
+
+        .user .message-role {
+            color: var(--success);
+        }
+
+        .message-text {
+            flex: 1;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        /* МЕТКИ ДЛЯ СОЗДАНИЯ ЗАМЕТОК */
+        .message-bookmark {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--accent);
+            color: #333;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 12px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+        }
+
+        .chat-message.ai .message-bookmark {
+            display: flex;
+        }
+
+        .message-bookmark:hover {
+            transform: scale(1.1);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+        }
+
+        /* ОБЛАСТЬ ВВОДА */
+        .input-area {
+            padding: 20px;
+            background: var(--card);
+            border-top: 1px solid var(--border);
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+        }
+
+        .user-input {
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .send-btn {
+            padding: 10px 16px;
+            border: 0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            background: var(--success);
+            color: #fff;
+        }
+
+        .send-btn:disabled {
+            opacity: .6;
+            cursor: not-allowed;
+        }
+
+        /* МОДАЛЬНЫЕ ОКНА */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group.hidden {
+            display: none;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+
+        .form-input, .form-textarea, .form-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        /* ПОДСВЕТКА ПОИСКА */
+        mark {
+            background: rgba(255, 204, 0, 0.3);
+            color: inherit;
+            padding: 1px 2px;
+            border-radius: 2px;
+        }
+
+        /* БИБЛЕЙСКИЕ ССЫЛКИ */
+        .bible-ref {
+            color: var(--primary);
+            text-decoration: underline;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .bible-ref:hover {
+            background-color: rgba(26, 115, 232, 0.1);
+            border-radius: 3px;
+        }
+
+        /* VERSE MODAL */
+        .verse-content {
+            line-height: 1.6;
+            font-size: 16px;
+            margin: 16px 0;
+        }
+
+        .verse-content b {
+            color: var(--primary);
+            margin-right: 4px;
+        }
+
+        /* LOADING SPINNER */
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* АДАПТИВНОСТЬ */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                left: 0;
+                top: 0;
+                height: 100%;
+                z-index: 1000;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content .menu-toggle {
+                display: block;
+            }
+
+            .overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 999;
+                display: none;
+            }
+
+            .overlay.active {
+                display: block;
+            }
+
+            .controls {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .input-area {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+        }
+
+        /* ТЕМНАЯ ТЕМА */
+        [data-theme="dark"] .model-select,
+        [data-theme="dark"] .user-input {
+            background: var(--bg);
+            color: var(--text);
+            border-color: var(--border);
+        }
+
+        [data-theme="dark"] .control-btn {
+            background: var(--hover);
+            color: var(--text);
+        }
+
+        [data-theme="dark"] .modal-content {
+            background: var(--card);
+            color: var(--text);
+        }
+
+        [data-theme="dark"] .form-input,
+        [data-theme="dark"] .form-textarea,
+        [data-theme="dark"] .form-select {
+            background: var(--bg);
+            color: var(--text);
+            border-color: var(--border);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- БОКОВАЯ ПАНЕЛЬ -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2 class="sidebar-title">📖 Біблійний Чат</h2>
+                <button class="collapse-btn" onclick="toggleSidebar()">‹</button>
+            </div>
+
+            <!-- ПОИСК -->
+            <div class="search-container">
+                <div class="search-box">
+                    <div class="search-icon">🔍</div>
+                    <input type="text" 
+                           class="search-input" 
+                           id="contextSearch"
+                           oninput="performContextSearch(this.value)"
+                           placeholder="">
+                    <div class="search-placeholder" id="searchPlaceholder">Пошук у сесіях...</div>
+                </div>
+                <div class="search-results" id="searchResults"></div>
+            </div>
+
+            <!-- ТАБЫ -->
+            <div class="tabs">
+                <button class="tab active" data-tab="sessions" onclick="switchTab('sessions')">
+                    📝 Сесії
+                </button>
+                <button class="tab" data-tab="notes" onclick="switchTab('notes')">
+                    🔖 Нотатки
+                </button>
+            </div>
+
+            <!-- СОДЕРЖИМОЕ ТАБОВ -->
+            <div class="tab-content">
+                <!-- ПАНЕЛЬ СЕССИЙ -->
+                <div class="panel active" id="sessions-panel">
+                    <div id="sessions-list"></div>
+                    <div class="empty-state" id="sessions-empty" style="display: none;">
+                        <h3>Немає сесій</h3>
+                        <p>Створіть нову сесію для початку роботи</p>
+                    </div>
+                </div>
+
+                <!-- ПАНЕЛЬ ЗАМЕТОК -->
+                <div class="panel" id="notes-panel">
+                    <div id="notes-list"></div>
+                    <div class="empty-state" id="notes-empty" style="display: none;">
+                        <h3>Немає нотаток</h3>
+                        <p>Створіть нотатку або закладку</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- КНОПКИ ДЕЙСТВИЙ -->
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="createNewSession()">
+                    ➕ Нова сесія
+                </button>
+                <button class="btn btn-secondary" onclick="showOptions()">
+                    📁 Файл
+                </button>
+            </div>
+        </div>
+
+        <!-- ОСНОВНАЯ ОБЛАСТЬ -->
+        <div class="main-content" id="mainContent">
+            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            
+            <!-- ЗАГОЛОВОК ЧАТА -->
+            <div class="chat-header">
+                <div style="flex: 1;">
+                    <h1 class="chat-title" id="chatTitle">Біблійний Чат</h1>
+                    <div class="session-info" id="sessionInfo">
+                        ЄХБ м.Суми, Україна
+                    </div>
+                </div>
+                <button class="controls-toggle" id="controlsToggle" title="Показати налаштування">⚙️</button>
+            </div>
+
+            <!-- ПАНЕЛЬ УПРАВЛЕНИЯ -->
+            <div class="controls visible" id="controls">
+                <select id="model" class="model-select" title="Модель AI"></select>
+                <button id="helpBtn" class="control-btn">🆘 Допомога</button>
+                <button id="themeBtn" class="control-btn">🌙 Тема</button>
+                <button id="clearBtn" class="control-btn btn-danger">🗑️ Очистити</button>
+            </div>
+
+            <!-- ОБЛАСТЬ ЧАТА -->
+            <div class="chat-area" id="chatArea"></div>
+
+            <!-- ОБЛАСТЬ ВВОДА -->
+            <div class="input-area">
+                <input id="userInput" class="user-input" type="text" placeholder="Напишіть запитання про Біблію..." />
+                <button id="sendBtn" class="send-btn">Надіслати</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERLAY ДЛЯ МОБИЛЬНЫХ -->
+    <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+    <!-- МОДАЛЬНОЕ ОКНО СОЗДАНИЯ ЗАМЕТКИ -->
+    <div class="modal" id="createNoteModal">
+        <div class="modal-content">
+            <h3>Створити нотатку</h3>
+            <div class="form-group">
+                <label class="form-label">Тип:</label>
+                <select class="form-select" id="noteType" onchange="toggleNoteFields()">
+                    <option value="note">📖 Нотатка</option>
+                    <option value="bookmark">🔖 Закладка</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Назва:</label>
+                <input type="text" class="form-input" id="noteTitle" placeholder="Введіть назву...">
+            </div>
+
+            <div id="noteContentFields">
+                <div class="form-group">
+                    <label class="form-label">Категорія:</label>
+                    <select class="form-select" id="noteCategory">
+                        <option value="study">📖 Вивчення</option>
+                        <option value="prayer">🙏 Молитва</option>
+                        <option value="sermon">🎤 Проповідь</option>
+                        <option value="personal">💭 Особисте</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Біблійна посилання:</label>
+                    <input type="text" class="form-input" id="noteBibleRef" placeholder="напр: Пс. 23:1-6">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Зміст:</label>
+                    <textarea class="form-textarea" id="noteContent" placeholder="Введіть текст..."></textarea>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Скасувати</button>
+                <button class="btn btn-primary" onclick="saveNote()">Створити</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО ОПЦИЙ -->
+    <div class="modal" id="optionsModal">
+        <div class="modal-content">
+            <h3>Опції</h3>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button class="btn btn-secondary" onclick="exportData()">📤 Експорт даних</button>
+                <button class="btn btn-secondary" onclick="importData()">📥 Імпорт даних</button>
+                <button class="btn btn-danger" onclick="clearAllData()">🗑️ Очистити все</button>
+                <button class="btn btn-primary" onclick="closeModal()">Закрити</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО ПОМОЩИ -->
+    <div class="modal" id="helpModal">
+        <div class="modal-content">
+            <h2>📚 Допомога</h2>
+            <div style="line-height: 1.6; font-size: 14px;">
+                <h3>📖 Біблійні посилання</h3>
+                <p>• Клікніть на будь-яке посилання на Біблію щоб побачити текст</p>
+                <p>• Підтримуються формати: (Пс. 23:1), (Буття 1:1-3), (Ів. 3:16)</p>
+                <p>• Можна переглядати всю главу цілком</p>
+                
+                <h3>💡 Приклади питань</h3>
+                <p>• "Надрукуй Псалом 23 повністю"</p>
+                <p>• "Поясни притчу про блудного сина"</p>
+                <p>• "Порівняй Івана 3:16 у різних перекладах"</p>
+                
+                <h3>🔖 Нотатки та закладки</h3>
+                <p>• Після кожної відповіді ШІ з'являється жовта метка</p>
+                <p>• Клікніть на метку щоб створити нотатку або закладку</p>
+                <p>• Нотатки містять текст, закладки - тільки посилання</p>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="closeModal()">Зрозуміло!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО СТИХОВ -->
+    <div class="modal" id="verseModal">
+    </div>
+
+    <script>
+ 'use strict';
+
+// =========================
+// CONFIG & CONSTANTS
+// =========================
+(function(){
+  // Book names (UA) and variants
+  const BOOK_NAMES = [
+    ["Буття", "Бут."],
+    ["Вихід", "Вих."],
+    ["Левіт", "Лев."],
+    ["Числа", "Чис."],
+    ["Второзаконня", "Втор."],
+    ["Ісуса Навина", "Нав.", "Ісус Навин"],
+    ["Суддів", "Суд.", "Судді"],
+    ["Рути", "Рут.", "Рут"],
+    ["1 Самуїлова", "1 Сам.", "1Сам."],
+    ["2 Самуїлова", "2 Сам.", "2Сам."],
+    ["1 Царів", "1 Цар.", "1Цар."],
+    ["2 Царів", "2 Цар.", "2Цар."],
+    ["1 Хронік", "1 Хр.", "1Хр."],
+    ["2 Хронік", "2 Хр.", "2Хр."],
+    ["Ездри", "Езд.", "Ездра", "Ездр."],
+    ["Неємії", "Неєм.", "Неемія", "Неем."],
+    ["Есфирі", "Есф.", "Естер", "Ест."],
+    ["Йова", "Йов."],
+    ["Псалми", "Пс.", "Псалом"],
+    ["Приповісті Соломонові", "Прип.", "Приповісті", "Пр."],
+    ["Екклезіаст", "Еккл.", "Екклезіяст", "Екл."],
+    ["Пісня Соломона", "Піс.", "Пісня над піснями", "Пісн."],
+    ["Ісаї", "Іс.", "Ісая"],
+    ["Єремії", "Єр."],
+    ["Плач Єремії", "Плач", "Пл.Єр."],
+    ["Єзекиїла", "Єз.", "Єзекіїль"],
+    ["Даниїла", "Дан.", "Даниїл"],
+    ["Осії", "Ос.", "Осія"],
+    ["Йоіла", "Йоіл.", "Йоіл"],
+    ["Амоса", "Ам.", "Амос"],
+    ["Авдія", "Авд.", "Овдій", "Овд."],
+    ["Йони", "Йона", "Йон."],
+    ["Михея", "Мих.", "Михей"],
+    ["Наума", "Наум"],
+    ["Авакума", "Ав.", "Авакум"],
+    ["Софонії", "Соф.", "Софонія"],
+    ["Аггея", "Агг.", "Огій", "Ог."],
+    ["Захарії", "Зах.", "Захарія"],
+    ["Малахії", "Мал.", "Малахія"],
+    ["Матвія", "Матв.", "Мт."],
+    ["Марка", "Марк.", "Мр."],
+    ["Луки", "Лук.", "Лк."],
+    ["Івана", "Ів."],
+    ["Дії апостолів", "Дії", "Дії Апостолів"],
+    ["Римлян", "Рим."],
+    ["1 Коринтян", "1 Кор.", "1Кор."],
+    ["2 Коринтян", "2 Кор.", "2Кор."],
+    ["Галатів", "Гал."],
+    ["Ефесян", "Еф."],
+    ["Филипян", "Фил.", "Филип'ян"],
+    ["Колоссян", "Кол.", "Колосян"],
+    ["1 Солунян", "1 Сол.", "1Сол."],
+    ["2 Солунян", "2 Сол.", "2Сол."],
+    ["1 Тимофія", "1 Тим.", "1Тим."],
+    ["2 Тимофія", "2 Тим.", "2Тим."],
+    ["Тита", "Тит"],
+    ["Филимона", "Филм.", "Флм."],
+    ["Євреїв", "Євр."],
+    ["Якова", "Як."],
+    ["1 Петра", "1 Пет.", "1Пет."],
+    ["2 Петра", "2 Пет.", "2Пет."],
+    ["1 Івана", "1 Ів.", "1Ів."],
+    ["2 Івана", "2 Ів.", "2Ів."],
+    ["3 Івана", "3 Ів.", "3Ів."],
+    ["Юди", "Юд."],
+    ["Об'явлення Івана Богослова", "Об'явл."]
+  ];
+
+  const BOOK_INDEX_MAP = new Map();
+  BOOK_NAMES.forEach((variants, idx) => {
+    variants.forEach(v => {
+      BOOK_INDEX_MAP.set(v, idx + 1);
+      BOOK_INDEX_MAP.set(v.replace(/\.$/, ''), idx + 1);
+    });
+  });
+  const BOOKS_LIST_FOR_PROMPT = BOOK_NAMES.map(v => v.join(', ')).join('; ');
+
+  function getBookNumber(bookName){
+    if(!bookName) return null;
+    const normalized = bookName.trim();
+    if(BOOK_INDEX_MAP.has(normalized)) return BOOK_INDEX_MAP.get(normalized);
+    const withoutDot = normalized.replace(/\.$/, '');
+    if(BOOK_INDEX_MAP.has(withoutDot)) return BOOK_INDEX_MAP.get(withoutDot);
+    const lower = normalized.toLowerCase();
+    for(const [k,v] of BOOK_INDEX_MAP){
+      if(k.toLowerCase() === lower) return v;
+    }
+    return null;
+  }
+
+  // Groq API
+  const encrypted = "Z3NrX1NUelQyS1FFQko3MGNDb1hDSllaV0dkeWIzRlk5OHJHN2xvWXUxSmc1SnV0VFZOSzIyVHY=";
+  const apiKey = atob(encrypted);
+  const API_BASE = "https://api.groq.com/openai/v1";
+  const API_URL = `${API_BASE}/chat/completions`;
+  const MODELS_URL = `${API_BASE}/models`;
+
+  const DEFAULT_PROMPT = `Ти — асистент-богослов і знавець Біблії. Відповідай стисло, точно і з повагою.
+\nВАЖЛИВО! При згадуванні біблійних книг використовуй ТІЛЬКИ ці назви:\n${BOOKS_LIST_FOR_PROMPT}\n\nДотримуйся цих правил:\n- Завжди тримайся біблійної теми, уникай оффтопу.\n- Якщо наводиш цитати, вказуй книгу, розділ і вірші у форматі (Книга число:число).\n- За можливості пояснюй контекст (хто говорить, кому, у якій ситуації).\n- Використовуй переклад Огієнка як основний при цитуванні.\n- При згадуванні біблійних джерел ЗАВЖДИ використовуй формат (Книга число:число) у круглих дужках.\n- Коли доречно, додавай порівняння з іншими українськими перекладами і коротко коментуй різницю.\n- Коротко додавай богословські коментарі, чітко відділяючи їх від тексту Писання.\n- Відповідай українською мовою.\n- Подавай цитати з номерами віршів і завжди вказуй джерело у круглих дужках після цитати.\n- НЕ вигадуй інших назв книг, крім зазначених вище!`;
+
+  const SETTINGS = {
+    systemPrompt: DEFAULT_PROMPT,
+    defaultModel: "meta-llama/llama-3.1-70b-versatile",
+    temperature: 0.7,
+    maxTokens: 1500,
+    highlightRefs: true
+  };
+
+  // =========================
+  // STATE
+  // =========================
+  let appData = {
+    sessions: [],
+    notes: [],
+    currentTab: 'sessions',
+    selectedItem: null,
+    currentSessionId: null
+  };
+
+  let messages = [{ role: 'system', content: SETTINGS.systemPrompt }];
+  let isLoading = false;
+  let controlsVisible = true;
+  let messageCounter = 0;
+
+  // =========================
+  // HELPERS
+  // =========================
+  const $ = (sel) => document.querySelector(sel);
+  function $el(tag, props={}){
+    const n = document.createElement(tag);
+    Object.assign(n, props);
+    return n;
+  }
+  function generateId(){
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  }
+  function formatDate(ts){
+    const date = new Date(ts);
+    const now = new Date();
+    const diffHours = Math.floor((now - date) / (1000*60*60));
+    if(diffHours < 1) return 'щойно';
+    if(diffHours < 24) return `${diffHours} год тому`;
+    if(diffHours < 48) return 'вчора';
+    return date.toLocaleDateString('uk-UA',{day:'numeric',month:'short'});
+  }
+  function escapeHTML(str){
+    return (str ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#039;'}[m]));
+  }
+  function linkify(htmlEscaped){
+    return htmlEscaped.replace(/(https?:\/\/[^\s)<>"']+)/g, '<a class="inline" href="$1" target="_blank" rel="noopener noreferrer">$1<\/a>');
+  }
+  function highlightBibleRefs(htmlEscaped){
+    const bibleRefRegex = /\(?(?:(?:[1-3]\s)?[А-ЯІЄҐ][а-яіїєґ']+(?:\s[А-ЯІЄҐ][а-яіїєґ']+)*\.?\s*\d+(?::\d+(?:-\d+)?|-\d+)?(?:\s*,\s*(?:[1-3]\s)?[А-ЯІЄҐ][а-яіїєґ']+(?:\s[А-ЯІЄҐ][а-яіїєґ']+)*\.?\s*\d+(?::\d+(?:-\d+)?|-\d+)?)*)\)?/g;
+    return htmlEscaped.replace(bibleRefRegex, (match) => {
+      if(match.includes('<span class="bible-ref">')) return match;
+      if(match.includes(',')){
+        const content = match.replace(/[()]/g,'');
+        const refs = content.split(',').map(r=>r.trim());
+        const marked = refs.map(r=>`<span class="bible-ref">${r}<\/span>`).join(', ');
+        return match.startsWith('(') ? `(${marked})` : marked;
+      } else {
+        const clean = match.replace(/[()]/g,'');
+        return match.startsWith('(') && match.endsWith(')')
+          ? `(<span class="bible-ref">${clean}<\/span>)`
+          : `<span class="bible-ref">${match}<\/span>`;
+      }
+    });
+  }
+  function formatMessageContent(raw){
+    let out = escapeHTML(raw);
+    out = linkify(out);
+    if(SETTINGS.highlightRefs) out = highlightBibleRefs(out);
+    return out.replace(/\n/g,'<br>');
+  }
+  function notify(msg, type='info'){
+    const n = $el('div');
+    n.style.cssText = `position:fixed;top:20px;right:20px;background:${type==='success'?'var(--success)':'var(--primary)'};color:#fff;padding:12px 20px;border-radius:8px;z-index:3000;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.2)`;
+    n.textContent = msg;
+    document.body.appendChild(n);
+    setTimeout(()=>n.remove(), 3000);
+  }
+
+  // =========================
+  // STORAGE
+  // =========================
+  const LS_KEY = 'bibleChatDataV1';
+  const LS_THEME = 'bibleChatTheme';
+  const LS_MODEL = 'bibleChatModel';
+
+  function saveData(){
+    try { localStorage.setItem(LS_KEY, JSON.stringify(appData)); } catch(e) { console.warn('save error', e); }
+  }
+  function loadData(){
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if(raw){ appData = JSON.parse(raw); }
+    } catch(e){ console.warn('load error', e); }
+  }
+
+  // =========================
+  // SESSIONS
+  // =========================
+  function clearChatArea(){ $('#chatArea').innerHTML = ''; }
+
+  function updateChatHeader(){
+    const titleEl = $('#chatTitle');
+    const infoEl = $('#sessionInfo');
+    if(appData.currentSessionId){
+      const s = appData.sessions.find(x=>x.id===appData.currentSessionId);
+      if(s){
+        titleEl.textContent = s.title;
+        infoEl.textContent = `${s.messageCount||0} повідомлень • ${formatDate(s.modified||s.created)}`;
+      }
+    } else {
+      titleEl.textContent = 'Біблійний Чат';
+      infoEl.textContent = 'ЄХБ м.Суми, Україна';
+    }
+  }
+
+  function appendMessage(role, content, skipSave=false, id=null){
+    const chat = $('#chatArea');
+    const wrap = $el('div', { className: 'chat-message ' + (role==='assistant'?'ai':'user') });
+    const msgId = id || generateId();
+    wrap.dataset.id = msgId;
+    wrap.id = `msg_${msgId}`;
+
+    const roleEl = $el('div', { className:'message-role', innerText: role==='assistant'?'AI':'Ви' });
+    const textEl = $el('div', { className:'message-text' });
+    textEl.innerHTML = formatMessageContent(content);
+
+    wrap.appendChild(roleEl);
+    wrap.appendChild(textEl);
+
+    if(role==='assistant'){
+      const bm = $el('button', { className:'message-bookmark', innerText:'★', title:'Створити нотатку / закладку' });
+      bm.addEventListener('click', ()=> openCreateNoteModal(msgId, extractFirstBibleRef(textEl.innerText)) );
+      wrap.appendChild(bm);
+    }
+
+    chat.appendChild(wrap);
+    chat.scrollTop = chat.scrollHeight;
+
+    if(!skipSave){
+      const s = getCurrentSession();
+      if(s){
+        s.messages.push({ id: msgId, role: role==='assistant'?'assistant':'user', content });
+        s.messageCount = (s.messages||[]).filter(m=>m.role!=='system').length;
+        s.modified = Date.now();
+        saveData();
+        updateChatHeader();
+      }
+    }
+  }
+
+  function getCurrentSession(){
+    return appData.sessions.find(s=>s.id===appData.currentSessionId);
+  }
+
+  function createNewSession(){
+    const id = generateId();
+    const session = {
+      id,
+      title: `Нова сесія ${formatDate(Date.now())}`,
+      created: Date.now(),
+      modified: Date.now(),
+      messageCount: 0,
+      messages: [{ role:'system', content: SETTINGS.systemPrompt }]
+    };
+    appData.sessions.unshift(session);
+    appData.currentSessionId = id;
+    appData.selectedItem = id;
+    messages = [...session.messages];
+    clearChatArea();
+    appendMessage('assistant', '🙏 Вітаю! Я — ваш AI асистент для вивчення Біблії. Ставте запитання про Писання.');
+    renderSessions();
+    updateChatHeader();
+    saveData();
+  }
+
+  function selectSession(sessionId){
+    const s = appData.sessions.find(x=>x.id===sessionId);
+    if(!s) return;
+    appData.currentSessionId = sessionId;
+    appData.selectedItem = sessionId;
+    messages = [...s.messages];
+    clearChatArea();
+    const toShow = messages.filter(m=>m.role!=='system');
+    toShow.forEach(m=> appendMessage(m.role==='assistant'?'assistant':'user', m.content, true, m.id) );
+    if(toShow.length===0) appendMessage('assistant', '🙏 Вітаю! Я — ваш AI асистент для вивчення Біблії. Ставте запитання про Писання.');
+    updateChatHeader();
+    renderSessions();
+  }
+
+  function deleteSession(sessionId){
+    if(!confirm('Видалити сесію? Усі повідомлення будуть втрачені!')) return;
+    appData.sessions = appData.sessions.filter(s=>s.id!==sessionId);
+    appData.notes = appData.notes.filter(n=>n.sessionId!==sessionId);
+    if(appData.currentSessionId===sessionId){
+      appData.currentSessionId = null;
+      clearChatArea();
+      appendMessage('assistant','🙏 Вітаю! Я — ваш AI асистент для вивчення Біблії. Ставте запитання про Писання.', true);
+      updateChatHeader();
+    }
+    if(appData.selectedItem===sessionId) appData.selectedItem = null;
+    saveData();
+    renderSessions();
+    if(appData.currentTab==='notes') renderNotes();
+  }
+
+  function editSession(sessionId){
+    const s = appData.sessions.find(x=>x.id===sessionId);
+    if(!s) return;
+    const t = prompt('Введіть нову назву сесії:', s.title);
+    if(t && t.trim()){
+      s.title = t.trim();
+      s.modified = Date.now();
+      saveData();
+      updateChatHeader();
+      renderSessions();
+    }
+  }
+
+  function updateSessionMessages(sessionId, newMessages){
+    const s = appData.sessions.find(x=>x.id===sessionId);
+    if(s){
+      s.messages = newMessages;
+      s.messageCount = newMessages.filter(m=>m.role!=='system').length;
+      s.modified = Date.now();
+      saveData();
+    }
+  }
+
+  // =========================
+  // RENDER: Sessions & Notes
+  // =========================
+  function renderSessions(){
+    const list = $('#sessions-list');
+    const empty = $('#sessions-empty');
+    list.innerHTML = '';
+    if(!appData.sessions.length){ empty.style.display='block'; return; }
+    empty.style.display = 'none';
+
+    appData.sessions.forEach(s=>{
+      const item = $el('div', { className:'list-item' + (appData.selectedItem===s.id?' selected':'') });
+      item.addEventListener('click', ()=> selectSession(s.id));
+      const title = $el('div', { className:'item-title', innerText: s.title });
+      const meta = $el('div', { className:'item-meta' });
+      meta.innerHTML = `<span>${s.messageCount||0} повід.</span><span>${formatDate(s.modified||s.created)}</span>`;
+
+      const actions = $el('div', { className:'item-actions' });
+      const btnE = $el('button', { className:'action-btn edit', innerText:'✎', title:'Перейменувати' });
+      btnE.addEventListener('click', (ev)=>{ ev.stopPropagation(); editSession(s.id); });
+      const btnD = $el('button', { className:'action-btn delete', innerText:'✕', title:'Видалити' });
+      btnD.addEventListener('click', (ev)=>{ ev.stopPropagation(); deleteSession(s.id); });
+      actions.append(btnE, btnD);
+
+      item.append(actions, title, meta);
+      list.appendChild(item);
+    });
+  }
+
+  function renderNotes(){
+    const list = $('#notes-list');
+    const empty = $('#notes-empty');
+    list.innerHTML = '';
+    if(!appData.notes.length){ empty.style.display='block'; return; }
+    empty.style.display = 'none';
+
+    appData.notes.forEach(n=>{
+      const item = $el('div', { className:'list-item' });
+      const title = $el('div', { className:'item-title', innerText: n.title || (n.type==='bookmark' ? (n.bibleRef||'Закладка') : 'Нотатка') });
+      const meta = $el('div', { className:'item-meta' });
+      const catClass = n.category ? {
+        study:'category-study', prayer:'category-prayer', sermon:'category-sermon', personal:'category-personal'
+      }[n.category] : '';
+      const cat = n.category ? `<span class="item-category ${catClass}">${n.category}<\/span>` : '';
+      meta.innerHTML = `${cat}<span>${formatDate(n.created)}<\/span>`;
+
+      const actions = $el('div', { className:'item-actions' });
+      const btnD = $el('button', { className:'action-btn delete', innerText:'✕', title:'Видалити' });
+      btnD.addEventListener('click', (ev)=>{ ev.stopPropagation(); deleteNote(n.id); });
+      actions.append(btnD);
+
+      item.addEventListener('click', ()=> openNote(n));
+      item.append(actions, title, meta);
+      list.appendChild(item);
+    });
+  }
+
+  function openNote(note){
+    if(note.type==='bookmark'){
+      // Try to focus message in session
+      if(note.sessionId && note.messageId){
+        selectSession(note.sessionId);
+        setTimeout(()=>{
+          const node = document.getElementById(`msg_${note.messageId}`);
+          if(node){
+            node.scrollIntoView({behavior:'smooth', block:'center'});
+            node.style.outline = '2px solid var(--primary)';
+            setTimeout(()=> node.style.outline = '', 1200);
+          }
+        }, 50);
+      }
+      if(note.bibleRef){ openVerseByRef(note.bibleRef); }
+    } else {
+      alert(`${note.title || 'Нотатка'}\n\n${note.content || ''}`);
+    }
+  }
+
+  function deleteNote(id){
+    appData.notes = appData.notes.filter(n=>n.id!==id);
+    saveData();
+    renderNotes();
+  }
+
+  // =========================
+  // NOTES / BOOKMARKS MODAL
+  // =========================
+  function openCreateNoteModal(messageId, prefillRef){
+    const modal = $('#createNoteModal');
+    modal.classList.add('active');
+    $('#noteType').value = 'note';
+    $('#noteTitle').value = '';
+    $('#noteCategory').value = 'study';
+    $('#noteBibleRef').value = prefillRef || '';
+    $('#noteContent').value = '';
+    toggleNoteFields();
+    modal.dataset.messageId = messageId || '';
+  }
+
+  function toggleNoteFields(){
+    const t = $('#noteType').value;
+    $('#noteContentFields').classList.toggle('hidden', t==='bookmark');
+  }
+
+  function closeModal(){
+    document.querySelectorAll('.modal').forEach(m=> m.classList.remove('active'));
+  }
+
+  function saveNote(){
+    const type = $('#noteType').value;
+    const title = $('#noteTitle').value.trim();
+    const category = $('#noteCategory').value;
+    const bibleRef = $('#noteBibleRef').value.trim();
+    const content = $('#noteContent').value.trim();
+    const mid = $('#createNoteModal').dataset.messageId || null;
+
+    const n = {
+      id: generateId(),
+      type,
+      title: title || (type==='bookmark' ? (bibleRef||'Закладка') : 'Нотатка'),
+      category: type==='bookmark'? null : category,
+      bibleRef: type==='bookmark'? bibleRef : (bibleRef||null),
+      content: type==='bookmark'? null : content,
+      created: Date.now(),
+      sessionId: appData.currentSessionId || null,
+      messageId: mid
+    };
+    appData.notes.unshift(n);
+    saveData();
+    renderNotes();
+    closeModal();
+    notify('Збережено', 'success');
+  }
+
+  function extractFirstBibleRef(text){
+    const re = /(?:(?:[1-3]\s)?[А-ЯІЄҐ][а-яіїєґ']+(?:\s[А-ЯІЄҐ][а-яіїєґ']+)*\.?\s*\d+(?::\d+(?:-\d+)?|-\d+)?)/;
+    const m = (text||'').match(re);
+    return m ? m[0] : '';
+  }
+
+  // =========================
+  // SEARCH
+  // =========================
+  function performContextSearch(q){
+    const box = $('#searchResults');
+    q = (q||'').trim();
+    box.innerHTML='';
+    if(!q){ box.classList.remove('active'); return; }
+
+    const results = [];
+    const ql = q.toLowerCase();
+    appData.sessions.forEach(s=>{
+      (s.messages||[]).filter(m=>m.role!=='system').forEach(m=>{
+        const lc = (m.content||'').toLowerCase();
+        if(lc.includes(ql)){
+          const idx = lc.indexOf(ql);
+          const start = Math.max(0, idx-30); const end = Math.min(m.content.length, idx+30);
+          const snippet = escapeHTML(m.content.substring(start,end)).replace(new RegExp(q, 'gi'), (t)=>`<mark>${t}<\/mark>`);
+          results.push({ sessionId:s.id, messageId:m.id, sessionTitle:s.title, role:m.role, snippet });
+        }
+      });
+    });
+
+    if(!results.length){ box.classList.add('active'); box.innerHTML = '<div class="search-result">Нічого не знайдено</div>'; return; }
+
+    results.slice(0,200).forEach(r=>{
+      const item = $el('div', { className:'search-result' });
+      item.innerHTML = `<div class="result-type">${r.role==='assistant'?'AI':'Ви'} • ${escapeHTML(r.sessionTitle)}<\/div>`+
+                       `<div class="result-preview">... ${r.snippet} ...<\/div>`;
+      item.addEventListener('click', ()=>{
+        box.classList.remove('active');
+        selectSession(r.sessionId);
+        setTimeout(()=>{
+          const node = document.getElementById(`msg_${r.messageId}`);
+          if(node){ node.scrollIntoView({behavior:'smooth', block:'center'}); }
+        }, 60);
+      });
+      box.appendChild(item);
+    });
+    box.classList.add('active');
+  }
+
+  // =========================
+  // CHAT (Groq)
+  // =========================
+  async function fetchModels(){
+    const sel = $('#model');
+    sel.innerHTML = '';
+    const optLoading = $el('option', { value:'', innerText:'Завантаження моделей…' });
+    sel.appendChild(optLoading);
+    try{
+      const r = await fetch(MODELS_URL, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+      if(!r.ok) throw new Error('models http '+r.status);
+      const data = await r.json();
+      const models = (data.data||[]).map(m=>m.id).filter(id=>/llama|mixtral|gemma|qwen/i.test(id));
+      sel.innerHTML = '';
+      models.sort().forEach(id=>{
+        const opt = $el('option', { value:id, innerText:id });
+        sel.appendChild(opt);
+      });
+      const saved = localStorage.getItem(LS_MODEL) || SETTINGS.defaultModel;
+      if(models.includes(saved)) sel.value = saved; else sel.value = models[0]||SETTINGS.defaultModel;
+    } catch(e){
+      console.warn('models error', e);
+      sel.innerHTML = '';
+      [SETTINGS.defaultModel, 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'].forEach(id=>{
+        const opt = $el('option', { value:id, innerText:id });
+        sel.appendChild(opt);
+      });
+      sel.value = localStorage.getItem(LS_MODEL) || SETTINGS.defaultModel;
+    }
+  }
+
+  async function sendMessage(){
+    if(isLoading) return;
+    const input = $('#userInput');
+    const text = input.value.trim();
+    if(!text) return;
+
+    input.value = '';
+    const s = getCurrentSession();
+    if(!s){ createNewSession(); }
+
+    appendMessage('user', text);
+    isLoading = true;
+    $('#sendBtn').disabled = true;
+
+    try{
+      const model = $('#model').value || SETTINGS.defaultModel;
+      localStorage.setItem(LS_MODEL, model);
+
+      const payload = {
+        model,
+        temperature: SETTINGS.temperature,
+        max_tokens: SETTINGS.maxTokens,
+        messages: [
+          { role:'system', content: SETTINGS.systemPrompt },
+          ...getCurrentSession().messages.filter(m=>m.role!=='system').map(m=>({ role:m.role, content:m.content })),
+          { role:'user', content: text }
+        ]
+      };
+
+      const r = await fetch(API_URL, {
+        method:'POST',
+        headers:{
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type':'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if(!r.ok){
+        const errText = await r.text();
+        throw new Error(`HTTP ${r.status}: ${errText}`);
+      }
+
+      const data = await r.json();
+      const answer = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content
+        ? data.choices[0].message.content
+        : 'Вибачте, не вдалося отримати відповідь.';
+
+      appendMessage('assistant', answer);
+    } catch(e){
+      console.error(e);
+      appendMessage('assistant', `⚠️ Помилка: ${e.message}`);
+    } finally {
+      isLoading = false;
+      $('#sendBtn').disabled = false;
+    }
+  }
+
+  // =========================
+  // BIBLE VERSE MODAL (integration stub)
+  // =========================
+  function openVerseModal(html){
+    const modal = $('#verseModal');
+    modal.innerHTML = `\n      <div class="modal-content">\n        <div class="form-actions" style="justify-content: space-between; margin-bottom:8px">\n          <strong>📖 Вірші</strong>\n          <button class="btn btn-secondary" id="closeVerseBtn">Закрити</button>\n        </div>\n        <div class="verse-content">${html}<\/div>\n      <\/div>`;
+    modal.classList.add('active');
+    $('#closeVerseBtn').addEventListener('click', closeModal);
+  }
+
+  function parseBibleRef(str){
+    // Very rough: "Книга 1:1-3" or "Книга 1:1"
+    const m = (str||'').match(/^\s*([^\d]+?)\s*(\d+)(?::(\d+(?:-\d+)?))?\s*$/);
+    if(!m) return null;
+    const book = m[1].trim().replace(/[()]/g,'');
+    const chapter = parseInt(m[2],10);
+    const verses = m[3]||null; // e.g. "1-3" or "16"
+    const bookNum = getBookNumber(book);
+    return { book, bookNum, chapter, verses };
+  }
+
+async function fetchBiblePassage(ref) {
+  try {
+    await bible.ready();
+
+    const match = ref.match(/^([^\d:]+)\s+(\d+):([\d,\-]+)/);
+    if (!match) {
+      return `<p class="text-red-500">Невірний формат посилання: ${ref}</p>`;
+    }
+
+    const book = match[1].trim();   // "Пс."
+    const chapter = match[2];       // "23"
+    const verses = match[3];        // "1-6"
+
+    let result = [];
+    if (verses.includes("-") || verses.includes(",")) {
+      result = await bible.getVersesRange(book, chapter, verses);
+    } else {
+      const verse = await bible.getVerse(book, chapter, verses);
+      if (verse) result = [verse];
+    }
+
+    if (!result || !result.length) return `<p>Не знайдено: ${ref}</p>`;
+
+    return result.map(v => `<span class="text-gray-600">${v.number}</span> ${v.text}`).join("<br>");
+  } catch (err) {
+    console.error("Bible API error:", err);
+    return `<p class="text-red-500">Помилка при завантаженні: ${ref}</p>`;
+  }
+}
+
+
+  async function openVerseByRef(refStr){
+    const parsed = parseBibleRef(refStr);
+    if(!parsed){ openVerseModal('Невірний формат посилання. Приклад: <b>Пс. 23:1-6<\/b>'); return; }
+    const html = await fetchBiblePassage(parsed);
+    openVerseModal(html);
+  }
+
+  // Delegated click for .bible-ref spans
+  function initBibleRefClicks(){
+    const area = $('#chatArea');
+    area.addEventListener('click', (e)=>{
+      const target = e.target;
+      if(target && target.classList && target.classList.contains('bible-ref')){
+        const ref = target.textContent.trim();
+        openVerseByRef(ref);
+      }
+    });
+  }
+
+  // =========================
+  // UI CONTROLS & THEME
+  // =========================
+  function toggleSidebar(){
+    const sb = $('#sidebar');
+    const ov = $('#overlay');
+    const mobile = window.matchMedia('(max-width: 768px)').matches;
+    if(mobile){
+      const open = !sb.classList.contains('open');
+      sb.classList.toggle('open', open);
+      ov.classList.toggle('active', open);
+    } else {
+      sb.classList.toggle('collapsed');
+      $('#mainContent').classList.toggle('sidebar-collapsed', sb.classList.contains('collapsed'));
+    }
+  }
+  function closeSidebar(){
+    $('#sidebar').classList.remove('open');
+    $('#overlay').classList.remove('active');
+  }
+
+  function switchTab(tab){
+    appData.currentTab = tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    if(tab==='sessions'){ $('#sessions-panel').classList.add('active'); renderSessions(); }
+    if(tab==='notes'){ $('#notes-panel').classList.add('active'); renderNotes(); }
+  }
+
+  function toggleControls(){
+    const c = $('#controls');
+    controlsVisible = !controlsVisible;
+    c.classList.toggle('hidden', !controlsVisible);
+  }
+
+  function toggleTheme(){
+    const cur = document.body.getAttribute('data-theme')||'light';
+    const next = cur==='dark' ? 'light' : 'dark';
+    document.body.setAttribute('data-theme', next==='dark'?'dark':'');
+    if(next==='dark') document.body.setAttribute('data-theme','dark'); else document.body.removeAttribute('data-theme');
+    localStorage.setItem(LS_THEME, next);
+  }
+
+  function applySavedTheme(){
+    const t = localStorage.getItem(LS_THEME)||'light';
+    if(t==='dark') document.body.setAttribute('data-theme','dark');
+  }
+
+  // =========================
+  // IMPORT/EXPORT & CLEAR
+  // =========================
+  function showOptions(){ $('#optionsModal').classList.add('active'); }
+
+  function exportData(){
+    const blob = new Blob([JSON.stringify(appData,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = $el('a', { href:url, download: `bible-chat_${new Date().toISOString().slice(0,10)}.json` });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 1000);
+  }
+
+  function importData(){
+    // Paste JSON in a prompt-like modal
+    const modal = $('#optionsModal');
+    const box = $el('div');
+    box.innerHTML = `\n      <div class="form-group">\n        <label class="form-label">Вставте JSON дані:<\/label>\n        <textarea class="form-textarea" id="importTextarea" placeholder="{ \"sessions\": [], \"notes\": [] }" style="min-height:160px"><\/textarea>\n      <\/div>\n      <div class="form-actions">\n        <button class="btn btn-secondary" id="cancelImport">Скасувати<\/button>\n        <button class="btn btn-primary" id="applyImport">Імпорт<\/button>\n      <\/div>`;
+    modal.querySelector('.modal-content').appendChild(box);
+    modal.classList.add('active');
+
+    $('#cancelImport').addEventListener('click', ()=>{ box.remove(); closeModal(); });
+    $('#applyImport').addEventListener('click', ()=>{
+      try{
+        const raw = /** @type {HTMLTextAreaElement} */(document.getElementById('importTextarea')).value;
+        const data = JSON.parse(raw);
+        if(!data || typeof data!=='object') throw new Error('Невірний формат');
+        appData.sessions = Array.isArray(data.sessions)? data.sessions : appData.sessions;
+        appData.notes = Array.isArray(data.notes)? data.notes : appData.notes;
+        appData.currentSessionId = data.currentSessionId || (appData.sessions[0]?.id || null);
+        saveData();
+        box.remove();
+        closeModal();
+        renderSessions();
+        renderNotes();
+        updateChatHeader();
+        notify('Дані імпортовано', 'success');
+      } catch(e){ alert('Помилка імпорту: '+e.message); }
+    }, { once:true });
+  }
+
+  function clearAllData(){
+    if(!confirm('Очистити всі дані (сесії і нотатки)?')) return;
+    appData = { sessions:[], notes:[], currentTab:'sessions', selectedItem:null, currentSessionId:null };
+    saveData();
+    renderSessions();
+    renderNotes();
+    clearChatArea();
+    updateChatHeader();
+    notify('Очищено', 'success');
+  }
+
+  function clearCurrentChat(){
+    const s = getCurrentSession();
+    if(!s) return;
+    if(!confirm('Очистити цю сесію?')) return;
+    s.messages = [{ role:'system', content: SETTINGS.systemPrompt }];
+    s.messageCount = 0;
+    s.modified = Date.now();
+    saveData();
+    clearChatArea();
+    appendMessage('assistant','Почнемо заново. Про що поговоримо з Писання?');
+    updateChatHeader();
+    renderSessions();
+  }
+
+  // =========================
+  // INIT
+  // =========================
+  function bindEvents(){
+    // Sidebar & overlay
+    window.toggleSidebar = toggleSidebar;
+    window.closeSidebar = closeSidebar;
+
+    // Tabs
+    window.switchTab = switchTab;
+
+    // Sessions
+    window.createNewSession = createNewSession;
+
+    // Options
+    window.showOptions = showOptions;
+    window.exportData = exportData;
+    window.importData = importData;
+    window.clearAllData = clearAllData;
+
+    // Modals
+    window.toggleNoteFields = toggleNoteFields;
+    window.closeModal = closeModal;
+    window.saveNote = saveNote;
+
+    // Controls
+    $('#controlsToggle').addEventListener('click', toggleControls);
+    $('#themeBtn').addEventListener('click', toggleTheme);
+    $('#helpBtn').addEventListener('click', ()=> $('#helpModal').classList.add('active'));
+    $('#clearBtn').addEventListener('click', clearCurrentChat);
+
+    // Search
+    window.performContextSearch = performContextSearch;
+
+    // Chat
+    $('#sendBtn').addEventListener('click', sendMessage);
+    $('#userInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } });
+
+    // Menu toggle for mobile (button exists in HTML)
+    // bound via inline onclick in HTML (toggleSidebar())
+  }
+
+  function ensureFirstSession(){
+    if(!appData.sessions.length){ createNewSession(); }
+    else if(!appData.currentSessionId){ appData.currentSessionId = appData.sessions[0].id; selectSession(appData.currentSessionId); }
+  }
+
+  async function init(){
+    applySavedTheme();
+    loadData();
+    renderSessions();
+    renderNotes();
+    ensureFirstSession();
+    updateChatHeader();
+    await fetchModels();
+    initBibleRefClicks();
+  }
+
+  // Run after DOM ready
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ()=>{ bindEvents(); init(); });
+  else { bindEvents(); init(); }
+
+})();
+</script>
+
+</body>
+</html>
