@@ -1,0 +1,4384 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Біблійний Асистент - з Планером Читання</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://christian-word.github.io/bible-engine/bible-API.js"></script>
+    <style>
+/* ===== CSS ПЕРЕМЕННЫЕ ===== */
+:root {
+    /* Цвета */
+    --color-primary: #1a73e8;
+    --color-bg: #f8f9fa;
+    --color-card: #ffffff;
+    --color-text: #202124;
+    --color-muted: #5f6368;
+    --color-border: #dadce0;
+    --color-hover: #f1f3f4;
+    --color-success: #34a853;
+    --color-danger: #ea4335;
+    --color-accent: #ffcc00;
+    --color-warning: #ff9800;
+
+    /* Размеры */
+    --sidebar-width: 320px;
+    --sidebar-collapsed-width: 40px;
+    --border-radius: 8px;
+    --border-radius-small: 4px;
+    --border-radius-large: 12px;
+
+    /* Отступы */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+
+    /* Тени */
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
+
+    /* Анимации */
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+
+    /* Z-индексы */
+    --z-overlay: 999;
+    --z-sidebar-mobile: 1000;
+    --z-modal: 2000;
+    --z-spinner: 3000;
+}
+
+[data-theme="dark"] {
+    --color-bg: #1a1a1a;
+    --color-card: #2d2d2d;
+    --color-text: #ffffff;
+    --color-muted: #aaaaaa;
+    --color-border: #444;
+    --color-hover: #383838;
+}
+
+/* ===== БАЗОВЫЕ СТИЛИ ===== */
+* {
+    box-sizing: border-box;
+}
+
+*::before,
+*::after {
+    box-sizing: inherit;
+}
+
+html {
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    height: 100vh;
+    overflow: hidden;
+    transition: background-color var(--transition-normal), color var(--transition-normal);
+}
+
+/* ===== УТИЛИТАРНЫЕ КЛАССЫ ===== */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.loading {
+    pointer-events: none;
+    opacity: 0.6;
+    cursor: wait;
+}
+
+/* ===== ОСНОВНОЙ КОНТЕЙНЕР ===== */
+.app-container {
+    display: flex;
+    height: 100vh;
+    position: relative;
+}
+
+/* ===== БОКОВАЯ ПАНЕЛЬ ===== */
+.sidebar {
+    width: var(--sidebar-width);
+    background-color: var(--color-card);
+    border-right: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    transition: transform var(--transition-normal), width var(--transition-normal);
+    position: relative;
+    z-index: 1;
+}
+
+.sidebar--collapsed {
+    transform: translateX(calc(-1 * (var(--sidebar-width) - var(--sidebar-collapsed-width))));
+    width: var(--sidebar-collapsed-width);
+}
+
+.sidebar__header {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 60px;
+}
+
+.sidebar__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--color-text);
+}
+
+.sidebar__toggle-btn {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: var(--border-radius-small);
+    color: var(--color-text);
+    transition: all var(--transition-fast);
+}
+
+.sidebar__toggle-btn:hover {
+    background-color: var(--color-hover);
+}
+
+.sidebar__actions {
+    padding: var(--spacing-md);
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+/* ===== ПОИСК ===== */
+.search {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+    position: relative;
+}
+
+.search__container {
+    position: relative;
+    width: 100%;
+}
+
+.search__input {
+    width: 100%;
+    padding: 12px 16px 12px 40px;
+    border: 1px solid var(--color-border);
+    border-radius: 24px;
+    font-size: 0.875rem;
+    outline: none;
+    background-color: var(--color-hover);
+    color: var(--color-text);
+    transition: all var(--transition-fast);
+}
+
+.search__input:focus {
+    background-color: var(--color-card);
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 5px 1px rgba(64,60,67,.16);
+}
+
+.search__icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-muted);
+    font-size: 1rem;
+    pointer-events: none;
+}
+
+.search__results {
+    background-color: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    margin-top: var(--spacing-sm);
+    max-height: 300px;
+    overflow-y: auto;
+    display: none;
+    box-shadow: var(--shadow-md);
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 100;
+}
+
+.search__results--active {
+    display: block;
+}
+
+/* ===== РЕЗУЛЬТАТЫ ПОИСКА ===== */
+.search-result {
+    padding: 12px;
+    border-bottom: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+.search-result:hover {
+    background-color: var(--color-hover);
+}
+
+.search-result:last-child {
+    border-bottom: none;
+}
+
+.search-result__type {
+    font-size: 0.6875rem;
+    color: var(--color-muted);
+    text-transform: uppercase;
+    font-weight: 500;
+    margin-bottom: var(--spacing-xs);
+}
+
+.search-result__title {
+    font-weight: 500;
+    font-size: 0.875rem;
+    margin-bottom: 2px;
+    line-height: 1.3;
+    color: var(--color-text);
+}
+
+.search-result__preview {
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    line-height: 1.3;
+    margin-top: var(--spacing-xs);
+}
+
+.search-result__meta {
+    font-size: 0.6875rem;
+    color: var(--color-muted);
+    margin-top: var(--spacing-xs);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* ===== ТАБЫ ===== */
+.tabs {
+    display: flex;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.tabs__item {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 12px 6px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-muted);
+    position: relative;
+    transition: color var(--transition-fast);
+}
+
+.tabs__item:hover {
+    color: var(--color-text);
+}
+
+.tabs__item--active {
+    color: var(--color-primary);
+}
+
+.tabs__item--active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--color-primary);
+}
+
+/* ===== СОДЕРЖИМОЕ ТАБОВ ===== */
+.tab-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-sm);
+}
+
+.panel {
+    display: none;
+}
+
+.panel--active {
+    display: block;
+}
+
+/* ===== СПИСКИ ===== */
+.sessions-list,
+.notes-list,
+.planner-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+/* ===== ЭЛЕМЕНТЫ СПИСКОВ ===== */
+.list-item {
+    padding: 12px;
+    background-color: var(--color-card);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+}
+
+.list-item:hover {
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.list-item--selected {
+    border-color: var(--color-primary);
+    background-color: rgba(26, 115, 232, 0.04);
+}
+
+.list-item__title {
+    font-weight: 500;
+    font-size: 0.875rem;
+    margin-bottom: var(--spacing-xs);
+    padding-right: 60px;
+    color: var(--color-text);
+}
+
+.list-item__meta {
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.list-item__category {
+    background-color: var(--color-primary);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.625rem;
+    font-weight: 500;
+}
+
+.list-item__category--study { background-color: #34a853; }
+.list-item__category--prayer { background-color: #9c27b0; }
+.list-item__category--sermon { background-color: #ff9800; }
+.list-item__category--personal { background-color: #e91e63; }
+.list-item__category--plan { background-color: #2196f3; }
+
+.list-item__actions {
+    position: absolute;
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    display: flex;
+    gap: var(--spacing-xs);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.list-item:hover .list-item__actions {
+    opacity: 1;
+}
+
+.list-item__action-btn {
+    background-color: var(--color-hover);
+    border: none;
+    border-radius: var(--border-radius-small);
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.list-item__action-btn:hover {
+    background-color: var(--color-border);
+    transform: scale(1.1);
+}
+
+.list-item__action-btn--edit {
+    color: var(--color-primary);
+}
+
+.list-item__action-btn--delete {
+    color: var(--color-danger);
+}
+
+.list-item__action-btn--delete:hover {
+    background-color: var(--color-danger);
+    color: white;
+}
+
+/* ===== ПЛАНЕР ЧТЕНИЯ ===== */
+.planner-header {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+    background-color: var(--color-card);
+}
+
+.planner-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: var(--spacing-sm);
+    margin-bottom: 12px;
+}
+
+.stat-card {
+    background-color: var(--color-hover);
+    padding: var(--spacing-sm);
+    border-radius: 6px;
+    text-align: center;
+}
+
+.stat-card__value {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.stat-card__label {
+    font-size: 0.625rem;
+    color: var(--color-muted);
+    margin-top: 2px;
+}
+
+.progress-bar {
+    background-color: var(--color-border);
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    margin: var(--spacing-sm) 0;
+}
+
+.progress-bar__fill {
+    background: linear-gradient(90deg, var(--color-success), var(--color-primary));
+    height: 100%;
+    transition: width var(--transition-normal);
+    width: 0%;
+}
+
+.plan-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px;
+    margin-bottom: 6px;
+    background-color: var(--color-card);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--color-border);
+    transition: all var(--transition-fast);
+}
+
+.plan-item:hover {
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.plan-item--completed {
+    background-color: rgba(52, 168, 83, 0.05);
+    border-color: var(--color-success);
+}
+
+.plan-item--today {
+    border-left: 4px solid var(--color-warning);
+}
+
+.plan-item__checkbox {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--color-border);
+    border-radius: var(--border-radius-small);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.plan-item__checkbox:hover {
+    border-color: var(--color-primary);
+}
+
+.plan-item__checkbox--checked {
+    background-color: var(--color-success);
+    border-color: var(--color-success);
+    color: white;
+}
+
+.plan-item__content {
+    flex: 1;
+    min-width: 0;
+}
+
+.plan-item__reading {
+    font-weight: 500;
+    color: var(--color-text);
+    margin-bottom: var(--spacing-xs);
+}
+
+.plan-item__date {
+    font-size: 0.6875rem;
+    color: var(--color-muted);
+}
+
+.plan-item__note {
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background-color: var(--color-hover);
+    border-radius: var(--border-radius-small);
+    border-left: 3px solid var(--color-primary);
+    font-size: 0.8125rem;
+}
+
+.plan-item__actions {
+    display: flex;
+    gap: var(--spacing-xs);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.plan-item:hover .plan-item__actions {
+    opacity: 1;
+}
+
+.plan-item__action-btn {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: var(--border-radius-small);
+    transition: all var(--transition-fast);
+}
+
+.plan-item__action-btn:hover {
+    background-color: var(--color-hover);
+    transform: scale(1.1);
+}
+
+/* ===== ПУСТЫЕ СОСТОЯНИЯ ===== */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--color-muted);
+}
+
+.empty-state__title {
+    margin: 0 0 var(--spacing-sm);
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.empty-state__text {
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+/* ===== ОСНОВНОЙ КОНТЕНТ ===== */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    min-width: 0;
+}
+
+.main-content--sidebar-collapsed {
+    /* Стили при свернутой боковой панели */
+}
+
+.menu-toggle {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background-color: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-sm) 12px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: none;
+    z-index: 100;
+    transition: all var(--transition-fast);
+}
+
+.menu-toggle:hover {
+    background-color: var(--color-hover);
+}
+
+/* ===== ЗАГОЛОВОК ЧАТА ===== */
+.chat-header {
+    padding: 12px var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background-color: var(--color-card);
+    min-height: 60px;
+}
+
+.chat-header__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.chat-header__title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--color-text);
+}
+
+.chat-header__subtitle {
+    font-size: 0.6875rem;
+    color: var(--color-muted);
+    margin-top: 2px;
+}
+
+.chat-header__settings-btn {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: var(--spacing-sm);
+    color: var(--color-text);
+    border-radius: 6px;
+    transition: all var(--transition-fast);
+    margin-left: var(--spacing-sm);
+}
+
+.chat-header__settings-btn:hover {
+    background-color: var(--color-hover);
+}
+
+/* ===== ПАНЕЛЬ УПРАВЛЕНИЯ ЧАТОМ ===== */
+.chat-controls {
+    padding: 12px var(--spacing-md);
+    background-color: var(--color-card);
+    border-bottom: 1px solid var(--color-border);
+    display: grid;
+    grid-template-columns: 1fr 120px 80px;
+    gap: var(--spacing-sm);
+    align-items: center;
+    transition: all var(--transition-normal);
+    overflow: hidden;
+}
+
+.chat-controls--hidden {
+    max-height: 0;
+    padding: 0 var(--spacing-md);
+    opacity: 0;
+    border-bottom: none;
+}
+
+.chat-controls__model-select {
+    width: 100%;
+    padding: var(--spacing-sm) 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-size: 0.875rem;
+}
+
+.chat-controls__btn {
+    padding: var(--spacing-sm) 12px;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: 600;
+    background-color: var(--color-hover);
+    color: var(--color-text);
+    font-size: 0.75rem;
+    transition: all var(--transition-fast);
+}
+
+.chat-controls__btn:hover {
+    background-color: var(--color-border);
+}
+
+/* ===== ОБЛАСТЬ ЧАТА ===== */
+.chat-area {
+    flex: 1;
+    padding: var(--spacing-md);
+    overflow-y: auto;
+    background-color: var(--color-bg);
+    scroll-behavior: smooth;
+}
+
+/* ===== СООБЩЕНИЯ ===== */
+.message {
+    margin: var(--spacing-sm) 0 var(--spacing-md);
+    line-height: 1.5;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    position: relative;
+}
+
+.message--ai {
+    padding-right: 40px;
+}
+
+.message__role {
+    font-weight: 700;
+    min-width: 25px;
+    flex-shrink: 0;
+}
+
+.message--ai .message__role {
+    color: var(--color-primary);
+}
+
+.message--user .message__role {
+    color: var(--color-success);
+}
+
+.message__text {
+    flex: 1;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.message__marker {
+    position: absolute;
+    right: var(--spacing-sm);
+    top: 0;
+    width: 24px;
+    height: 24px;
+    background-color: var(--color-accent);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all var(--transition-fast);
+    color: #000;
+    z-index: 10;
+}
+
+.message--ai:hover .message__marker {
+    opacity: 1;
+}
+
+.message__marker:hover {
+    transform: scale(1.1);
+    box-shadow: var(--shadow-sm);
+}
+
+/* ===== ОБЛАСТЬ ВВОДА ===== */
+.input-area {
+    padding: var(--spacing-md);
+    background-color: var(--color-card);
+    border-top: 1px solid var(--color-border);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+}
+
+.input-area__field {
+    padding: 12px;
+    font-size: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    transition: all var(--transition-fast);
+}
+
+.input-area__field:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.input-area__send-btn {
+    padding: 10px var(--spacing-md);
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: 600;
+    background-color: var(--color-success);
+    color: white;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.input-area__send-btn:hover:not(:disabled) {
+    background-color: #2e7d32;
+}
+
+.input-area__send-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ===== КНОПКИ ===== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    padding: 10px var(--spacing-md);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.btn--primary {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+.btn--primary:hover:not(:disabled) {
+    background-color: #1557b0;
+}
+
+.btn--secondary {
+    background-color: var(--color-hover);
+    color: var(--color-text);
+}
+
+.btn--secondary:hover:not(:disabled) {
+    background-color: var(--color-border);
+}
+
+.btn--danger {
+    background-color: var(--color-danger);
+    color: white;
+}
+
+.btn--danger:hover:not(:disabled) {
+    background-color: #c62828;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ===== ОВЕРЛЕЙ ===== */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0,0,0,0.5);
+    z-index: var(--z-overlay);
+    display: none;
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+}
+
+.overlay--active {
+    display: block;
+    opacity: 1;
+}
+
+/* ===== МОДАЛЬНЫЕ ОКНА ===== */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-modal);
+    padding: var(--spacing-md);
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+}
+
+.modal--active {
+    display: flex;
+    opacity: 1;
+}
+
+.modal__content {
+    background-color: var(--color-card);
+    border-radius: var(--border-radius-large);
+    padding: var(--spacing-lg);
+    max-width: 500px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    color: var(--color-text);
+    box-shadow: var(--shadow-lg);
+    transform: scale(0.9);
+    transition: transform var(--transition-normal);
+}
+
+.modal--active .modal__content {
+    transform: scale(1);
+}
+
+.modal__title {
+    margin: 0 0 var(--spacing-md);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+/* ===== ФОРМЫ ===== */
+.form__group {
+    margin-bottom: var(--spacing-md);
+}
+
+.form__label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 6px;
+    font-size: 0.875rem;
+    color: var(--color-text);
+}
+
+.form__input,
+.form__textarea,
+.form__select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-family: inherit;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    transition: all var(--transition-fast);
+}
+
+.form__input:focus,
+.form__textarea:focus,
+.form__select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.form__textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.form__actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: flex-end;
+    margin-top: var(--spacing-lg);
+}
+
+.form__fields {
+    transition: all var(--transition-normal);
+}
+
+.form__fields--note,
+.form__fields--plan,
+.form__fields--message-note {
+    display: none;
+}
+
+.form__fields--note.form__fields--active,
+.form__fields--plan.form__fields--active,
+.form__fields--message-note.form__fields--active {
+    display: block;
+}
+
+.form__group--custom-plan {
+    display: none;
+}
+
+.form__group--custom-plan.form__group--active {
+    display: block;
+}
+
+/* ===== БИБЛЕЙСКИЕ ССЫЛКИ ===== */
+.bible-ref {
+    color: var(--color-primary);
+    text-decoration: underline;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.bible-ref:hover {
+    background-color: rgba(26, 115, 232, 0.1);
+    border-radius: 3px;
+}
+
+/* ===== ПОДСВЕТКА ПОИСКА ===== */
+mark {
+    background-color: rgba(255, 204, 0, 0.4);
+    color: inherit;
+    padding: 1px 2px;
+    border-radius: 2px;
+    font-weight: 500;
+}
+
+/* ===== СПИННЕР ЗАГРУЗКИ ===== */
+.loading-spinner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.3);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-spinner);
+}
+
+.loading-spinner--active {
+    display: flex;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--color-border);
+    border-top: 4px solid var(--color-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ===== ДОПОЛНИТЕЛЬНЫЕ СТИЛИ ===== */
+.options-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.help-content {
+    line-height: 1.6;
+    font-size: 0.875rem;
+}
+
+.help-section {
+    margin-bottom: var(--spacing-md);
+}
+
+.help-section__title {
+    margin: 0 0 var(--spacing-sm);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.help-section__list {
+    margin: 0;
+    padding-left: var(--spacing-md);
+    list-style-type: disc;
+}
+
+.help-section__list li {
+    margin-bottom: var(--spacing-xs);
+}
+
+/* ===== АДАПТИВНОСТЬ ===== */
+@media (max-width: 768px) {
+    .sidebar {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        z-index: var(--z-sidebar-mobile);
+        transform: translateX(-100%);
+        transition: transform var(--transition-normal);
+    }
+
+    .sidebar--open {
+        transform: translateX(0);
+    }
+
+    .menu-toggle {
+        display: block;
+    }
+
+    .chat-controls {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .input-area {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-sm);
+    }
+
+    .modal__content {
+        margin: var(--spacing-md);
+        max-height: calc(100vh - 2rem);
+    }
+
+    .planner-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .form__actions {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .sidebar {
+        width: 280px;
+    }
+
+    .chat-header {
+        padding: var(--spacing-sm);
+    }
+
+    .input-area {
+        padding: var(--spacing-sm);
+    }
+
+    .planner-stats {
+        grid-template-columns: 1fr;
+    }
+}
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Боковая панель -->
+        <aside class="sidebar" id="sidebar">
+            <header class="sidebar__header">
+                <h2 class="sidebar__title">📖 Біблія Асистент</h2>
+                <button class="sidebar__toggle-btn" id="sidebarToggle" type="button" aria-label="Згорнути панель">‹</button>
+            </header>
+
+            <!-- Поиск -->
+            <div class="search">
+                <div class="search__container">
+                    <div class="search__icon">🔍</div>
+                    <input 
+                        type="text" 
+                        class="search__input" 
+                        id="contextSearch"
+                        placeholder="Пошук у сесіях, нотатках та планах..."
+                        autocomplete="off">
+                </div>
+                <div class="search__results" id="searchResults"></div>
+            </div>
+
+            <!-- Табы -->
+            <nav class="tabs">
+                <button class="tabs__item tabs__item--active" data-tab="sessions" type="button">
+                    📝 Сесії
+                </button>
+                <button class="tabs__item" data-tab="notes" type="button">
+                    🔖 Нотатки
+                </button>
+                <button class="tabs__item" data-tab="planner" type="button">
+                    📅 План
+                </button>
+            </nav>
+
+            <!-- Содержимое -->
+            <div class="tab-content">
+                <!-- Панель сессий -->
+                <div class="panel panel--active" id="sessions-panel">
+                    <div class="sessions-list" id="sessionsList"></div>
+                    <div class="empty-state" id="sessionsEmpty">
+                        <h3 class="empty-state__title">Немає сесій</h3>
+                        <p class="empty-state__text">Створіть нову сесію для початку роботи</p>
+                    </div>
+                </div>
+
+                <!-- Панель заметок -->
+                <div class="panel" id="notes-panel">
+                    <div class="notes-list" id="notesList"></div>
+                    <div class="empty-state" id="notesEmpty">
+                        <h3 class="empty-state__title">Немає нотаток</h3>
+                        <p class="empty-state__text">Створіть нотатку або закладку</p>
+                    </div>
+                </div>
+
+                <!-- Панель планера -->
+                <div class="panel" id="planner-panel">
+                    <!-- Статистика -->
+                    <div class="planner-header">
+                        <div class="planner-stats" id="plannerStats">
+                            <div class="stat-card">
+                                <div class="stat-card__value" id="statDay">-</div>
+                                <div class="stat-card__label">День</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-card__value" id="statCompleted">0</div>
+                                <div class="stat-card__label">Прочитано</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-card__value" id="statTotal">0</div>
+                                <div class="stat-card__label">Всього</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-card__value" id="statPercent">0%</div>
+                                <div class="stat-card__label">Прогрес</div>
+                            </div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-bar__fill" id="progressFill"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Список чтений -->
+                    <div class="planner-list" id="plannerList"></div>
+                    <div class="empty-state" id="plannerEmpty">
+                        <h3 class="empty-state__title">Немає активного плану</h3>
+                        <p class="empty-state__text">Створіть новий план читання</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Кнопки действий -->
+            <footer class="sidebar__actions">
+                <button class="btn btn--primary" id="createNewBtn" type="button">
+                    ➕ Створити
+                </button>
+                <button class="btn btn--secondary" id="showOptionsBtn" type="button">
+                    📁 Файл
+                </button>
+            </footer>
+        </aside>
+
+        <!-- Основная область - чат -->
+        <main class="main-content" id="mainContent">
+            <button class="menu-toggle" id="menuToggle" type="button" aria-label="Відкрити меню">☰</button>
+            
+            <!-- Заголовок чата -->
+            <header class="chat-header">
+                <div class="chat-header__info">
+                    <h1 class="chat-header__title" id="chatTitle">Біблійний чат</h1>
+                    <div class="chat-header__subtitle">ЄХБ м.Суми, Україна</div>
+                </div>
+                <button class="chat-header__settings-btn" id="toggleChatControls" type="button" title="Показати налаштування">⚙️</button>
+            </header>
+
+            <!-- Панель управления чатом -->
+            <div class="chat-controls" id="chatControls">
+                <select class="chat-controls__model-select" id="modelSelect" title="Модель AI">
+                    <option value="">Завантаження моделей...</option>
+                </select>
+                <button class="chat-controls__btn" id="showHelpBtn" type="button">🆘 Допомога</button>
+                <button class="chat-controls__btn" id="themeBtn" type="button">🌙 Тема</button>
+            </div>
+
+            <!-- Область чата -->
+            <div class="chat-area" id="chatArea">
+                <div class="empty-state">
+                    <h3 class="empty-state__title">Вітаємо у Біблійному Асистенті!</h3>
+                    <p class="empty-state__text">Почніть нову розмову або виберіть існуючу сесію з бокової панелі.</p>
+                </div>
+            </div>
+
+            <!-- Область ввода -->
+            <div class="input-area">
+                <input 
+                    class="input-area__field" 
+                    id="userInput" 
+                    type="text" 
+                    placeholder="Напишіть запитання про Біблію..."
+                    autocomplete="off">
+                <button class="input-area__send-btn" id="sendBtn" type="button">Надіслати</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Оверлей для мобильных -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Модальные окна -->
+    <!-- Создание новых элементов -->
+    <div class="modal" id="createModal">
+        <div class="modal__content">
+            <h3 class="modal__title">Створити нову</h3>
+            <form class="form" id="createForm">
+                <div class="form__group">
+                    <label class="form__label" for="createType">Тип:</label>
+                    <select class="form__select" id="createType">
+                        <option value="session">📝 Нова сесія</option>
+                        <option value="note">📖 Нотатка</option>
+                        <option value="bookmark">🔖 Закладка</option>
+                        <option value="plan">📅 План читання</option>
+                    </select>
+                </div>
+
+                <div class="form__group">
+                    <label class="form__label" for="createTitle">Назва:</label>
+                    <input type="text" class="form__input" id="createTitle" placeholder="Введіть назву..." required>
+                </div>
+
+                <div class="form__fields form__fields--note" id="noteFields">
+                    <div class="form__group">
+                        <label class="form__label" for="createCategory">Категорія:</label>
+                        <select class="form__select" id="createCategory">
+                            <option value="study">📖 Вивчення</option>
+                            <option value="prayer">🙏 Молитва</option>
+                            <option value="sermon">🎤 Проповідь</option>
+                            <option value="personal">💭 Особисте</option>
+                            <option value="plan">📅 План читання</option>
+                        </select>
+                    </div>
+
+                    <div class="form__group">
+                        <label class="form__label" for="createReference">Біблійна посилання:</label>
+                        <input type="text" class="form__input" id="createReference" placeholder="напр: Пс. 23:1-6">
+                    </div>
+
+                    <div class="form__group">
+                        <label class="form__label" for="createContent">Зміст:</label>
+                        <textarea class="form__textarea" id="createContent" placeholder="Введіть текст..."></textarea>
+                    </div>
+                </div>
+
+                <div class="form__fields form__fields--plan" id="planFields">
+                    <div class="form__group">
+                        <label class="form__label" for="createPlanType">Тип плану:</label>
+                        <select class="form__select" id="createPlanType">
+                            <option value="yearly">📅 Річний план (365 днів)</option>
+                            <option value="90days">⚡ 90 днів Нового Заповіту</option>
+                            <option value="psalms30">🎵 Псалми за 30 днів</option>
+                            <option value="proverbs31">💎 Приповісті за 31 день</option>
+                            <option value="gospels21">✝️ Євангелія за 21 день</option>
+                            <option value="prophets60">🔥 Великі пророки за 60 днів</option>
+                            <option value="custom">🛠️ Власний план</option>
+                        </select>
+                    </div>
+
+                    <div class="form__group form__group--custom-plan" id="customPlanField">
+                        <label class="form__label" for="createCustomPlan">Список читань (по одному на рядок):</label>
+                        <textarea class="form__textarea" id="createCustomPlan" placeholder="Буття 1-2&#10;Буття 3-4&#10;Псалом 1&#10;..."></textarea>
+                    </div>
+
+                    <div class="form__group">
+                        <label class="form__label" for="createStartDate">Дата початку:</label>
+                        <input type="date" class="form__input" id="createStartDate">
+                    </div>
+                </div>
+
+                <div class="form__actions">
+                    <button type="button" class="btn btn--secondary" id="cancelCreateBtn">Скасувати</button>
+                    <button type="submit" class="btn btn--primary">Створити</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Создание заметки к сообщению -->
+    <div class="modal" id="messageNoteModal">
+        <div class="modal__content">
+            <h3 class="modal__title">Створити нотатку до повідомлення</h3>
+            <form class="form" id="messageNoteForm">
+                <div class="form__group">
+                    <label class="form__label" for="messageNoteType">Тип:</label>
+                    <select class="form__select" id="messageNoteType">
+                        <option value="bookmark">🔖 Закладка</option>
+                        <option value="note">📖 Нотатка</option>
+                    </select>
+                </div>
+
+                <div class="form__group">
+                    <label class="form__label" for="messageNoteTitle">Назва:</label>
+                    <input type="text" class="form__input" id="messageNoteTitle" placeholder="Введіть назву..." required>
+                </div>
+
+                <div class="form__fields form__fields--message-note" id="messageNoteFields">
+                    <div class="form__group">
+                        <label class="form__label" for="messageNoteCategory">Категорія:</label>
+                        <select class="form__select" id="messageNoteCategory">
+                            <option value="study">📖 Вивчення</option>
+                            <option value="prayer">🙏 Молитва</option>
+                            <option value="sermon">🎤 Проповідь</option>
+                            <option value="personal">💭 Особисте</option>
+                        </select>
+                    </div>
+
+                    <div class="form__group">
+                        <label class="form__label" for="messageNoteReference">Біблійна посилання:</label>
+                        <input type="text" class="form__input" id="messageNoteReference" placeholder="напр: Пс. 23:1-6">
+                    </div>
+
+                    <div class="form__group">
+                        <label class="form__label" for="messageNoteContent">Зміст:</label>
+                        <textarea class="form__textarea" id="messageNoteContent" placeholder="Введіть текст..."></textarea>
+                    </div>
+                </div>
+
+                <div class="form__actions">
+                    <button type="button" class="btn btn--secondary" id="cancelMessageNoteBtn">Скасувати</button>
+                    <button type="submit" class="btn btn--primary">Створити</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Добавление заметки к плану чтения -->
+    <div class="modal" id="planNoteModal">
+        <div class="modal__content">
+            <h3 class="modal__title" id="planNoteModalTitle">Додати нотатку</h3>
+            <form class="form" id="planNoteForm">
+                <div class="form__group">
+                    <label class="form__label" for="planNoteText">Нотатка:</label>
+                    <textarea class="form__textarea" id="planNoteText" placeholder="Введіть ваші думки про прочитане..." required></textarea>
+                </div>
+
+                <div class="form__actions">
+                    <button type="button" class="btn btn--secondary" id="cancelPlanNoteBtn">Скасувати</button>
+                    <button type="submit" class="btn btn--primary">Зберегти</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Опции -->
+    <div class="modal" id="optionsModal">
+        <div class="modal__content">
+            <h3 class="modal__title">Опції</h3>
+            <div class="options-buttons">
+                <button class="btn btn--secondary" id="exportDataBtn" type="button">📤 Експорт даних</button>
+                <button class="btn btn--secondary" id="importDataBtn" type="button">📥 Імпорт даних</button>
+                <button class="btn btn--danger" id="clearAllBtn" type="button">🗑️ Очистити все</button>
+                <button class="btn btn--primary" id="closeOptionsBtn" type="button">Закрити</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модалка с библейскими стихами -->
+    <div class="modal" id="verseModal"></div>
+
+    <!-- Модалка помощи -->
+    <div class="modal" id="helpModal">
+        <div class="modal__content">
+            <h2 class="modal__title">📚 Допомога</h2>
+            <div class="help-content">
+                <section class="help-section">
+                    <h3 class="help-section__title">📖 Біблійні посилання</h3>
+                    <ul class="help-section__list">
+                        <li>Клікніть на будь-яке посилання на Біблію щоб побачити текст</li>
+                        <li>Підтримуються формати: (Пс. 23:1), (Буття 1:1-3), (Ів. 3:16)</li>
+                        <li>Можна переглядати всю главу цілком</li>
+                    </ul>
+                </section>
+                
+                <section class="help-section">
+                    <h3 class="help-section__title">🔖 Нотатки та закладки</h3>
+                    <ul class="help-section__list">
+                        <li>Після кожного відповіді ІІ з'являється жовта метка</li>
+                        <li>Клікніть на метку щоб створити нотатку або закладку</li>
+                        <li>Нотатки прив'язуються до конкретного повідомлення</li>
+                    </ul>
+                </section>
+                
+                <section class="help-section">
+                    <h3 class="help-section__title">📅 Планер читання</h3>
+                    <ul class="help-section__list">
+                        <li>Створіть план читання з готових шаблонів або власний</li>
+                        <li>Відмічайте прочитане та додавайте нотатки</li>
+                        <li>Стежте за прогресом у статистиці</li>
+                        <li>Використовуйте AI для обговорення прочитаного</li>
+                    </ul>
+                </section>
+                
+                <section class="help-section">
+                    <h3 class="help-section__title">💡 Приклади питань</h3>
+                    <ul class="help-section__list">
+                        <li>"Надрукуй Псалом 23 повністю"</li>
+                        <li>"Поясни притчу про блудного сина"</li>
+                        <li>"Порівняй Івана 3:16 у різних перекладах"</li>
+                        <li>"Створи план читання Нового Заповіту на 90 днів"</li>
+                    </ul>
+                </section>
+            </div>
+            <div class="form__actions">
+                <button class="btn btn--primary" id="closeHelpBtn" type="button">Зрозуміло!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Спиннер загрузки -->
+    <div class="loading-spinner" id="loadingSpinner">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+NotificationManager.success('Сесію видалено');
+    }
+
+    // ===== МЕТОДЫ ЗАМЕТОК =====
+    
+    // Переход к сообщению заметки
+    goToNoteMessage(noteId) {
+        const note = this.notes.get(noteId);
+        if (!note || !note.sessionId || !note.messageId) return;
+        
+        // Загружаем сессию если нужно
+        if (this.state.getData('currentSessionId') !== note.sessionId) {
+            this.loadSession(note.sessionId);
+        }
+        
+        // Ищем сообщение и скроллим к нему
+        setTimeout(() => {
+            const messageElement = document.querySelector(`[data-message-id="${note.messageId}"]`);
+            if (messageElement) {
+                messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                messageElement.style.background = 'rgba(255, 204, 0, 0.2)';
+                setTimeout(() => {
+                    messageElement.style.background = '';
+                }, 2000);
+            }
+        }, 100);
+        
+        // Переключаемся на вкладку сессий и сворачиваем сайдбар на мобильных
+        this.switchTab('sessions');
+        if (window.innerWidth <= 768) {
+            this.closeSidebar();
+        }
+    }
+
+    // Редактирование заметки
+    editNote(noteId) {
+        const note = this.notes.get(noteId);
+        if (!note) return;
+        
+        // Простое редактирование заголовка (можно расширить)
+        const newTitle = prompt('Введіть нову назву нотатки:', note.title);
+        if (newTitle && newTitle.trim() !== note.title) {
+            this.notes.update(noteId, { title: newTitle.trim() });
+        }
+    }
+
+    // Удаление заметки
+    deleteNote(noteId) {
+        const note = this.notes.get(noteId);
+        if (!note) return;
+        
+        if (!confirm(`Ви дійсно хочете видалити нотатку "${note.title}"?`)) return;
+        
+        this.notes.delete(noteId);
+        NotificationManager.success('Нотатку видалено');
+    }
+
+    // ===== МЕТОДЫ ПЛАНЕРА =====
+    
+    // Переключение статуса элемента плана
+    togglePlanItem(planId, itemIndex) {
+        this.planner.toggleItem(planId, itemIndex);
+        this.updatePlannerStats();
+    }
+
+    // Обсуждение чтения с AI
+    discussReading(planId, itemIndex) {
+        const plan = this.planner.get(planId);
+        if (!plan || !plan.items[itemIndex]) return;
+        
+        const reading = plan.items[itemIndex].reading;
+        
+        // Переключаемся в чат
+        this.switchTab('sessions');
+        if (window.innerWidth <= 768) {
+            this.closeSidebar();
+        }
+        
+        // Создаем сессию если нужно
+        if (!this.state.getData('currentSessionId')) {
+            this.createSession(`Обговорення: ${reading}`);
+        }
+        
+        // Отправляем сообщение об этом чтении
+        const userInput = document.getElementById('userInput');
+        if (userInput) {
+            userInput.value = `Розкажи про ${reading}. Які ключові теми та уроки можна винести з цього читання?`;
+            this.sendMessage();
+        }
+    }
+
+    // ===== МЕТОДЫ ЧАТА =====
+    
+    // Отправка сообщения
+    async sendMessage() {
+        if (this.api.loading) return;
+        
+        const userInput = document.getElementById('userInput');
+        const modelSelect = document.getElementById('modelSelect');
+        const sendBtn = document.getElementById('sendBtn');
+        
+        if (!userInput || !modelSelect) return;
+        
+        const message = userInput.value.trim();
+        if (!message) return;
+        
+        // Создаем сессию если нужно
+        let currentSessionId = this.state.getData('currentSessionId');
+        if (!currentSessionId) {
+            currentSessionId = this.createSession();
+        }
+        
+        const session = this.sessions.get(currentSessionId);
+        if (!session) return;
+        
+        // Генерируем ID для сообщений
+        const userMessageId = Utils.generateId();
+        const aiMessageId = Utils.generateId();
+        
+        // Добавляем сообщение пользователя
+        const userMessage = { role: "user", content: message, id: userMessageId };
+        this.sessions.addMessage(currentSessionId, userMessage);
+        this.appendMessage("user", message, userMessageId);
+        
+        userInput.value = "";
+        sendBtn.disabled = true;
+        
+        // Показываем индикатор загрузки
+        this.showLoadingSpinner();
+        
+        try {
+            // Подготавливаем сообщения для API
+            const updatedSession = this.sessions.get(currentSessionId);
+            const messagesForAPI = updatedSession.messages.map(msg => ({
+                role: msg.role,
+                content: msg.content
+            }));
+            
+            const reply = await this.api.sendMessage(messagesForAPI, modelSelect.value);
+            
+            // Добавляем ответ AI
+            const aiMessage = { role: "assistant", content: reply, id: aiMessageId };
+            this.sessions.addMessage(currentSessionId, aiMessage);
+            this.appendMessage("assistant", reply, aiMessageId, true);
+            
+            // Скрываем панель управления после первого сообщения
+            this.hideChatControlsAfterFirstMessage(currentSessionId);
+
+        } catch (error) {
+            const errorMessage = `<span style="color: var(--color-muted);">Помилка: ${Utils.escapeHTML(error.message)}</span>`;
+            this.appendMessage("assistant", errorMessage, null, false);
+            console.error('Ошибка отправки сообщения:', error);
+            NotificationManager.error('Помилка надсилання повідомлення');
+        } finally {
+            this.hideLoadingSpinner();
+            sendBtn.disabled = false;
+            userInput.focus();
+        }
+    }
+
+    // Добавление сообщения в чат
+    appendMessage(role, content, messageId = null, showMarker = false) {
+        const chatArea = document.getElementById('chatArea');
+        if (!chatArea) return;
+        
+        // Удаляем приветственное сообщение если есть
+        const emptyState = chatArea.querySelector('.empty-state');
+        if (emptyState) {
+            emptyState.remove();
+        }
+        
+        const messageElement = document.createElement('div');
+        messageElement.className = `message message--${role === 'assistant' ? 'ai' : 'user'}`;
+        if (messageId) {
+            messageElement.setAttribute('data-message-id', messageId);
+        }
+        
+        const formattedContent = role === 'assistant' ? Utils.formatAssistantMessage(content) : Utils.escapeHTML(content);
+        
+        messageElement.innerHTML = `
+            <span class="message__role">${role === 'assistant' ? 'AI' : 'Ви'}:</span>
+            <span class="message__text">${formattedContent}</span>
+            ${showMarker ? `<button class="message__marker" data-message-id="${messageId}" title="Створити нотатку">📝</button>` : ''}
+        `;
+        
+        chatArea.appendChild(messageElement);
+        chatArea.scrollTop = chatArea.scrollHeight;
+        
+        // Прикрепляем обработчики для библейских ссылок и маркеров заметок
+        if (role === 'assistant') {
+            setTimeout(() => {
+                this.attachBibleRefHandlers();
+                this.attachNoteMarkerHandlers();
+            }, 10);
+        }
+    }
+
+    // Показ приветственного сообщения
+    showWelcomeMessage() {
+        const chatArea = document.getElementById('chatArea');
+        if (!chatArea) return;
+        
+        const welcomeDiv = document.createElement('div');
+        welcomeDiv.className = 'message message--ai';
+        welcomeDiv.innerHTML = `
+            <span class="message__role">AI:</span>
+            <span class="message__text">
+                <span style="color: var(--color-muted);">🙏 Вітаю! Я - ваш AI асистент для вивчення Біблії. Задавайте будь-які питання про Святе Письмо!</span>
+            </span>
+        `;
+        chatArea.appendChild(welcomeDiv);
+    }
+
+    // Скрытие панели управления после первого сообщения
+    hideChatControlsAfterFirstMessage(sessionId) {
+        if (this.ui.chatControlsVisible) {
+            const session = this.sessions.get(sessionId);
+            if (!session) return;
+            
+            const messageCount = session.messages.filter(m => m.role !== 'system').length;
+            if (messageCount === 2) { // первое сообщение пользователя + первый ответ AI
+                setTimeout(() => {
+                    this.toggleChatControls();
+                }, 1000);
+            }
+        }
+    }
+
+    // ===== ОБРАБОТЧИКИ БИБЛЕЙСКИХ ССЫЛОК =====
+    
+    // Прикрепление обработчиков к библейским ссылкам
+    attachBibleRefHandlers() {
+        document.querySelectorAll(".bible-ref").forEach(el => {
+            if (el.dataset.bound) return;
+            el.dataset.bound = "1";
+            
+            el.addEventListener("click", async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                await this.handleBibleRefClick(el);
+            });
+        });
+    }
+
+    // Обработка клика по библейской ссылке
+    async handleBibleRefClick(element) {
+        const refText = element.innerText.trim();
+        
+        const verseMatch = refText.match(/(.+?)\s*(\d+):([\d,\-\s]+)/);
+        const chapterRangeMatch = !verseMatch && refText.match(/(.+?)\s*(\d+)-(\d+)$/);
+        const singleChapterMatch = !verseMatch && !chapterRangeMatch && refText.match(/(.+?)\s*(\d+)$/);
+        
+        element.style.opacity = '0.6';
+        element.style.cursor = 'wait';
+
+        try {
+            if (verseMatch) {
+                await this.loadVerses(verseMatch, refText);
+            } else if (chapterRangeMatch) {
+                await this.loadChapterRange(chapterRangeMatch, refText);
+            } else if (singleChapterMatch) {
+                await this.loadSingleChapter(singleChapterMatch, refText);
+            } else {
+                throw new Error("Не вдалося розпізнати формат посилання");
+            }
+        } catch (error) {
+            console.error("Error loading bible reference:", error);
+            NotificationManager.error("Помилка завантаження тексту Біблії: " + error.message);
+        } finally {
+            element.style.opacity = '1';
+            element.style.cursor = 'pointer';
+        }
+    }
+
+    // Загрузка стихов
+    async loadVerses(match, refText) {
+        const [, bookNameRaw, chapter, verseStr] = match;
+        const bookName = bookNameRaw.trim().replace(/\.$/, '');
+        const bookNum = Utils.getBookNumber(bookName);
+        
+        if (!bookNum) {
+            throw new Error("Невідома книга: " + bookName);
+        }
+
+        let verses = [];
+        
+        if (verseStr.includes(",") || verseStr.includes("-")) {
+            verses = await window.bible.getVersesRange(bookNum, chapter, verseStr);
+        } else {
+            const verse = await window.bible.getVerse(bookNum, chapter, verseStr);
+            if (verse) verses = [verse];
+        }
+
+        if (verses.length === 0) {
+            throw new Error("Стих(и) не знайдено");
+        }
+
+        const html = verses.map(v => `<b>${v.number}.</b> ${v.text}`).join("<br>");
+        this.showVerseModal(`${bookName} ${chapter}:${verseStr}`, html, bookNum, chapter);
+    }
+
+    // Загрузка диапазона глав
+    async loadChapterRange(match, refText) {
+        const [, bookNameRaw, startChapter, endChapter] = match;
+        const bookName = bookNameRaw.trim().replace(/\.$/, '');
+        const bookNum = Utils.getBookNumber(bookName);
+        
+        if (!bookNum) {
+            throw new Error("Невідома книга: " + bookName);
+        }
+
+        let allChaptersText = '';
+        const start = parseInt(startChapter);
+        const end = parseInt(endChapter);
+        
+        for (let chapter = start; chapter <= end; chapter++) {
+            const chapterText = await window.bible.getChapterText(bookNum, chapter);
+            const formatted = chapterText
+                .replace(/\s*(\d+\.)/g, "<br><b>$1</b>")
+                .replace(/^<br>/, "");
+            allChaptersText += `<h3>Глава ${chapter}</h3>${formatted}<br><br>`;
+        }
+        
+        this.showVerseModal(`${bookName} ${startChapter}-${endChapter}`, allChaptersText, bookNum, start);
+    }
+
+    // Загрузка одной главы
+    async loadSingleChapter(match, refText) {
+        const [, bookNameRaw, chapter] = match;
+        const bookName = bookNameRaw.trim().replace(/\.$/, '');
+        const bookNum = Utils.getBookNumber(bookName);
+        
+        if (!bookNum) {
+            throw new Error("Невідома книга: " + bookName);
+        }
+
+        const chapterText = await window.bible.getChapterText(bookNum, chapter);
+        const formatted = chapterText
+            .replace(/\s*(\d+\.)/g, "<br><b>$1</b>")
+            .replace(/^<br>/, "");
+        
+        this.showVerseModal(`${bookName} ${chapter}`, formatted, bookNum, chapter);
+    }
+
+    // Показ модального окна со стихами
+    showVerseModal(title, content, bookNum, chapter) {
+        const modal = document.getElementById("verseModal");
+        if (!modal) return;
+        
+        modal.classList.add('modal--active');
+        
+        const isChapterRange = title.includes('-') && !title.includes(':');
+        
+        modal.innerHTML = `
+            <div class="modal__content">
+                <h2 class="modal__title">📖 ${title}</h2>
+                <div style="line-height: 1.6; font-size: 1rem; margin: 1rem 0; max-height: 60vh; overflow-y: auto;">${content}</div>
+                <div class="form__actions">
+                    ${!isChapterRange ? `<button class="btn btn--secondary" id="show-chapter">Показати всю главу</button>` : ''}
+                    <button class="btn btn--primary" id="close-verse-modal">Закрити</button>
+                </div>
+            </div>
+        `;
+        
+        // Обработчики кнопок
+        modal.querySelector("#close-verse-modal")?.addEventListener("click", () => {
+            modal.classList.remove('modal--active');
+        });
+        
+        const showChapterBtn = modal.querySelector("#show-chapter");
+        if (showChapterBtn) {
+            showChapterBtn.addEventListener("click", async () => {
+                const button = showChapterBtn;
+                const originalText = button.textContent;
+                
+                button.innerHTML = 'Завантаження... <div class="spinner" style="display: inline-block; width: 16px; height: 16px; margin-left: 8px;"></div>';
+                button.disabled = true;
+                
+                try {
+                    const chapterText = await window.bible.getChapterText(bookNum, chapter);
+                    const formatted = chapterText
+                        .replace(/\s*(\d+\.)/g, "<br><b>$1</b>")
+                        .replace(/^<br>/, "");
+                    
+                    const contentDiv = modal.querySelector("div[style*='line-height']");
+                    if (contentDiv) {
+                        contentDiv.innerHTML = formatted;
+                    }
+                    
+                    const titleElement = modal.querySelector("h2");
+                    if (titleElement) {
+                        titleElement.textContent = `📖 ${title.split(':')[0]} - вся глава ${chapter}`;
+                    }
+                    
+                    button.style.display = 'none';
+                } catch (error) {
+                    button.textContent = 'Помилка завантаження';
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.disabled = false;
+                    }, 2000);
+                }
+            });
+        }
+        
+        // Закрытие по клику вне модального окна
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('modal--active');
+            }
+        });
+    }
+
+    // ===== ОБРАБОТЧИКИ МАРКЕРОВ ЗАМЕТОК =====
+    
+    // Прикрепление обработчиков к маркерам заметок
+    attachNoteMarkerHandlers() {
+        document.querySelectorAll(".message__marker").forEach(marker => {
+            if (marker.dataset.bound) return;
+            marker.dataset.bound = "1";
+            
+            marker.addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const messageId = marker.getAttribute('data-message-id');
+                this.showMessageNoteModal(messageId);
+            });
+        });
+    }
+
+    // ===== МОДАЛЬНЫЕ ОКНА =====
+    
+    // Показ модального окна создания
+    showCreateModal() {
+        const today = new Date().toISOString().split('T')[0];
+        const startDateInput = document.getElementById('createStartDate');
+        if (startDateInput) startDateInput.value = today;
+        
+        this.showModal('createModal');
+        document.getElementById('createTitle')?.focus();
+    }
+
+    // Показ модального окна заметки к сообщению
+    showMessageNoteModal(messageId) {
+        this.ui.currentMessageForNote = messageId;
+        this.showModal('messageNoteModal');
+        document.getElementById('messageNoteTitle')?.focus();
+    }
+
+    // Показ модального окна заметки к плану
+    showPlanNoteModal(planId, itemIndex) {
+        this.ui.currentPlanItemForNote = { planId, itemIndex };
+        const plan = this.planner.get(planId);
+        const item = plan?.items[itemIndex];
+        
+        if (!item) return;
+        
+        const modalTitle = document.getElementById('planNoteModalTitle');
+        const noteText = document.getElementById('planNoteText');
+        
+        if (modalTitle) modalTitle.textContent = `Нотатка до ${item.reading}`;
+        if (noteText) noteText.value = item.note || '';
+        
+        this.showModal('planNoteModal');
+        noteText?.focus();
+    }
+
+    // Показ модального окна опций
+    showOptionsModal() {
+        this.showModal('optionsModal');
+    }
+
+    // Показ модального окна помощи
+    showHelpModal() {
+        this.showModal('helpModal');
+    }
+
+    // Общий метод показа модального окна
+    showModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('modal--active');
+        }
+    }
+
+    // Закрытие модального окна
+    closeModal() {
+        document.querySelectorAll('.modal--active').forEach(modal => {
+            modal.classList.remove('modal--active');
+        });
+        
+        // Сброс состояния
+        this.ui.currentMessageForNote = null;
+        this.ui.currentPlanItemForNote = null;
+    }
+
+    // ===== ОБРАБОТЧИКИ ФОРМ =====
+    
+    // Обработка отправки формы создания
+    handleCreateSubmit() {
+        const form = document.getElementById('createForm');
+        const formData = new FormData(form);
+        
+        const type = document.getElementById('createType')?.value;
+        const title = document.getElementById('createTitle')?.value?.trim();
+        
+        if (!title) {
+            NotificationManager.error('Введіть назву');
+            return;
+        }
+        
+        try {
+            if (type === 'session') {
+                const sessionId = this.createSession(title);
+                this.switchTab('sessions');
+            } else if (type === 'note' || type === 'bookmark') {
+                const noteData = {
+                    title: title,
+                    type: type,
+                    category: document.getElementById('createCategory')?.value || '',
+                    reference: document.getElementById('createReference')?.value?.trim() || '',
+                    content: document.getElementById('createContent')?.value?.trim() || ''
+                };
+                this.notes.create(noteData);
+                this.switchTab('notes');
+            } else if (type === 'plan') {
+                const planData = {
+                    title: title,
+                    type: document.getElementById('createPlanType')?.value || 'yearly',
+                    startDate: document.getElementById('createStartDate')?.value || new Date().toISOString().split('T')[0],
+                    customPlan: document.getElementById('createCustomPlan')?.value?.trim() || ''
+                };
+                this.planner.create(planData);
+                this.switchTab('planner');
+            }
+            
+            this.closeModal();
+            NotificationManager.success('Створено успішно');
+        } catch (error) {
+            console.error('Error creating item:', error);
+            NotificationManager.error('Помилка створення: ' + error.message);
+        }
+    }
+
+    // Обработка отправки формы заметки к сообщению
+    handleMessageNoteSubmit() {
+        const title = document.getElementById('messageNoteTitle')?.value?.trim();
+        const type = document.getElementById('messageNoteType')?.value || 'bookmark';
+        
+        if (!title) {
+            NotificationManager.error('Введіть назву');
+            return;
+        }
+        
+        const noteData = {
+            title: title,
+            type: type,
+            messageId: this.ui.currentMessageForNote
+        };
+        
+        if (type === 'note') {
+            noteData.category = document.getElementById('messageNoteCategory')?.value || '';
+            noteData.reference = document.getElementById('messageNoteReference')?.value?.trim() || '';
+            noteData.content = document.getElementById('messageNoteContent')?.value?.trim() || '';
+        }
+        
+        this.notes.create(noteData);
+        this.closeModal();
+        NotificationManager.success('Нотатку створено');
+    }
+
+    // Обработка отправки формы заметки к плану
+    handlePlanNoteSubmit() {
+        const noteText = document.getElementById('planNoteText')?.value?.trim();
+        
+        if (!noteText) {
+            NotificationManager.error('Введіть нотатку');
+            return;
+        }
+        
+        const { planId, itemIndex } = this.ui.currentPlanItemForNote || {};
+        if (planId !== undefined && itemIndex !== undefined) {
+            this.planner.addNote(planId, itemIndex, noteText);
+            this.closeModal();
+            NotificationManager.success('Нотатку додано');
+        }
+    }
+
+    // ===== ОБНОВЛЕНИЕ ПОЛЕЙ ФОРМ =====
+    
+    // Обновление полей формы создания
+    updateCreateFields() {
+        const type = document.getElementById('createType')?.value;
+        const noteFields = document.getElementById('noteFields');
+        const planFields = document.getElementById('planFields');
+        
+        // Скрываем все дополнительные поля
+        noteFields?.classList.remove('form__fields--active');
+        planFields?.classList.remove('form__fields--active');
+        
+        // Показываем нужные поля
+        if (type === 'note' || type === 'bookmark') {
+            noteFields?.classList.add('form__fields--active');
+        } else if (type === 'plan') {
+            planFields?.classList.add('form__fields--active');
+            this.updatePlanFields();
+        }
+    }
+
+    // Обновление полей плана
+    updatePlanFields() {
+        const planType = document.getElementById('createPlanType')?.value;
+        const customPlanField = document.getElementById('customPlanField');
+        
+        if (planType === 'custom') {
+            customPlanField?.classList.add('form__group--active');
+        } else {
+            customPlanField?.classList.remove('form__group--active');
+        }
+    }
+
+    // Обновление полей заметки к сообщению
+    updateMessageNoteFields() {
+        const type = document.getElementById('messageNoteType')?.value;
+        const messageNoteFields = document.getElementById('messageNoteFields');
+        
+        if (type === 'note') {
+            messageNoteFields?.classList.add('form__fields--active');
+        } else {
+            messageNoteFields?.classList.remove('form__fields--active');
+        }
+    }
+
+    // ===== МЕТОДЫ ИМПОРТА/ЭКСПОРТА =====
+    
+    // Экспорт данных
+    exportData() {
+        try {
+            const data = {
+                ...this.state.getData(),
+                exportedAt: new Date().toISOString(),
+                version: CONFIG.VERSION
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `bible-assistant-backup-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            URL.revokeObjectURL(url);
+            this.closeModal();
+            NotificationManager.success('Дані експортовано');
+        } catch (error) {
+            console.error('Export error:', error);
+            NotificationManager.error('Помилка експорту: ' + error.message);
+        }
+    }
+
+    // Импорт данных
+    importData() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        
+        input.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (!this.state.validateData(data)) {
+                        throw new Error('Недійсний формат файлу');
+                    }
+                    
+                    if (confirm('Ви дійсно хочете імпортувати дані? Це замінить всі поточні дані.')) {
+                        this.state.updateState({
+                            sessions: data.sessions || {},
+                            notes: data.notes || {},
+                            plans: data.plans || {},
+                            currentSessionId: null,
+                            currentPlanId: null
+                        });
+                        
+                        this.renderAll();
+                        this.closeModal();
+                        NotificationManager.success('Дані імпортовано');
+                    }
+                } catch (error) {
+                    console.error('Import error:', error);
+                    NotificationManager.error('Помилка імпорту: ' + error.message);
+                }
+            };
+            
+            reader.readAsText(file);
+        });
+        
+        input.click();
+    }
+
+    // Очистка всех данных
+    clearAllData() {
+        if (!confirm('Ви дійсно хочете видалити ВСІ дані? Цю дію не можна скасувати.')) return;
+        
+        // Очищаем localStorage
+        localStorage.removeItem(CONFIG.STORAGE_KEY);
+        
+        // Сбрасываем состояние
+        this.state.updateState({
+            sessions: {},
+            notes: {},
+            plans: {},
+            currentSessionId: null,
+            currentPlanId: null,
+            messageCounter: 0
+        });
+        
+        // Очищаем UI
+        const chatArea = document.getElementById('chatArea');
+        const chatTitle = document.getElementById('chatTitle');
+        
+        if (chatArea) {
+            chatArea.innerHTML = `
+                <div class="empty-state">
+                    <h3 class="empty-state__title">Вітаємо у Біблійному Асистенті!</h3>
+                    <p class="empty-state__text">Почніть нову розмову або виберіть існуючу сесію з бокової панелі.</p>
+                </div>
+            `;
+        }
+        
+        if (chatTitle) chatTitle.textContent = 'Біблійний чат';
+        
+        this.renderAll();
+        this.closeModal();
+        NotificationManager.success('Всі дані видалено');
+    }
+
+    // ===== УТИЛИТЫ UI =====
+    
+    // Показ спиннера загрузки
+    showLoadingSpinner() {
+        const spinner = document.getElementById('loadingSpinner');
+        if (spinner) {
+            spinner.classList.add('loading-spinner--active');
+        }
+    }
+
+    // Скрытие спиннера загрузки
+    hideLoadingSpinner() {
+        const spinner = document.getElementById('loadingSpinner');
+        if (spinner) {
+            spinner.classList.remove('loading-spinner--active');
+        }
+    }
+}
+
+// ===== ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ =====
+document.addEventListener('DOMContentLoaded', () => {
+    // Создаем экземпляр приложения
+    window.bibleApp = new BibleAssistantApp();
+    
+    console.log('📖 Біблійний Асистент v' + CONFIG.VERSION + ' завантажено');
+});
+
+// ===== ЭКСПОРТ ДЛЯ ГЛОБАЛЬНОГО ИСПОЛЬЗОВАНИЯ =====
+window.BibleAssistantApp = BibleAssistantApp;    // Обработка изменений состояния
+    handleStateChange(changes) {
+        // Сохраняем данные при изменениях
+        this.state.saveToStorage();
+        
+        // Обновляем UI при необходимости
+        if (changes.sessions || changes.currentSessionId) {
+            this.renderSessions();
+            
+            if (changes.currentSessionId) {
+                this.loadSession(changes.currentSessionId.new);
+            }
+        }
+        
+        if (changes.notes) {
+            this.renderNotes();
+        }
+        
+        if (changes.plans || changes.currentPlanId) {
+            this.renderPlanner();
+        }
+    }
+
+    // ===== МЕТОДЫ ЗАГРУЗКИ =====
+    
+    // Загрузка моделей AI
+    async loadModels() {
+        const modelSelect = document.getElementById('modelSelect');
+        if (!modelSelect) return;
+
+        modelSelect.innerHTML = '<option value="">Завантаження моделей...</option>';
+        
+        try {
+            const models = await this.api.loadModels();
+            modelSelect.innerHTML = '';
+            
+            models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.id;
+                option.textContent = model.id;
+                modelSelect.appendChild(option);
+            });
+
+            // Устанавливаем модель по умолчанию
+            const defaultModel = CONFIG.API.defaultModel;
+            const hasDefault = [...modelSelect.options].some(o => o.value === defaultModel);
+            
+            if (hasDefault) {
+                modelSelect.value = defaultModel;
+            } else if (modelSelect.options.length > 0) {
+                modelSelect.selectedIndex = 0;
+            }
+
+        } catch (error) {
+            modelSelect.innerHTML = '<option value="">Помилка завантаження моделей</option>';
+            console.error("Ошибка загрузки моделей:", error);
+        }
+    }
+
+    // Применение темы
+    applyTheme() {
+        const savedTheme = localStorage.getItem(CONFIG.THEME_KEY) || 'light';
+        const themeBtn = document.getElementById('themeBtn');
+        
+        if (savedTheme === 'dark') {
+            document.body.setAttribute('data-theme', 'dark');
+            if (themeBtn) themeBtn.textContent = '☀️ Тема';
+        } else {
+            document.body.removeAttribute('data-theme');
+            if (themeBtn) themeBtn.textContent = '🌙 Тема';
+        }
+    }
+
+    // ===== МЕТОДЫ UI =====
+    
+    // Переключение боковой панели
+    toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const overlay = document.getElementById('overlay');
+        
+        if (window.innerWidth <= 768) {
+            // Мобильная версия
+            if (sidebar.classList.contains('sidebar--open')) {
+                sidebar.classList.remove('sidebar--open');
+                overlay.classList.remove('overlay--active');
+            } else {
+                sidebar.classList.add('sidebar--open');
+                overlay.classList.add('overlay--active');
+            }
+        } else {
+            // Десктопная версия
+            if (sidebar.classList.contains('sidebar--collapsed')) {
+                sidebar.classList.remove('sidebar--collapsed');
+                mainContent.classList.remove('main-content--sidebar-collapsed');
+                this.ui.sidebarCollapsed = true;
+            }
+        }
+    }
+
+    // Закрытие боковой панели
+    closeSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        
+        sidebar.classList.remove('sidebar--open');
+        overlay.classList.remove('overlay--active');
+    }
+
+    // Переключение табов
+    switchTab(tabName) {
+        this.ui.activeTab = tabName;
+        
+        // Обновляем табы
+        document.querySelectorAll('.tabs__item').forEach(tab => {
+            tab.classList.remove('tabs__item--active');
+        });
+        document.querySelector(`[data-tab="${tabName}"]`)?.classList.add('tabs__item--active');
+        
+        // Обновляем панели
+        document.querySelectorAll('.panel').forEach(panel => {
+            panel.classList.remove('panel--active');
+        });
+        document.getElementById(`${tabName}-panel`)?.classList.add('panel--active');
+        
+        // Очищаем поиск и рендерим содержимое
+        const searchInput = document.getElementById('contextSearch');
+        if (searchInput) searchInput.value = '';
+        
+        this.renderTabContent(tabName);
+    }
+
+    // Переключение панели управления чатом
+    toggleChatControls() {
+        const controls = document.getElementById('chatControls');
+        const toggleBtn = document.getElementById('toggleChatControls');
+        
+        this.ui.chatControlsVisible = !this.ui.chatControlsVisible;
+        
+        if (this.ui.chatControlsVisible) {
+            controls?.classList.remove('chat-controls--hidden');
+            if (toggleBtn) {
+                toggleBtn.textContent = '⚙️';
+                toggleBtn.title = 'Сховати налаштування';
+            }
+        } else {
+            controls?.classList.add('chat-controls--hidden');
+            if (toggleBtn) {
+                toggleBtn.textContent = '🔧';
+                toggleBtn.title = 'Показати налаштування';
+            }
+        }
+    }
+
+    // Переключение темы
+    toggleTheme() {
+        const currentTheme = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        
+        if (currentTheme === 'dark') {
+            document.body.setAttribute('data-theme', 'dark');
+            document.getElementById('themeBtn').textContent = '☀️ Тема';
+        } else {
+            document.body.removeAttribute('data-theme');
+            document.getElementById('themeBtn').textContent = '🌙 Тема';
+        }
+        
+        localStorage.setItem(CONFIG.THEME_KEY, currentTheme);
+    }
+
+    // Обработка изменения размера окна
+    handleResize() {
+        // Автоматически закрываем боковую панель на мобильных при изменении ориентации
+        if (window.innerWidth > 768) {
+            this.closeSidebar();
+        }
+    }
+
+    // ===== МЕТОДЫ РЕНДЕРИНГА =====
+    
+    // Рендеринг всех компонентов
+    renderAll() {
+        this.renderSessions();
+        this.renderNotes();
+        this.renderPlanner();
+        this.updatePlannerStats();
+    }
+
+    // Рендеринг содержимого таба
+    renderTabContent(tabName) {
+        switch(tabName) {
+            case 'sessions':
+                this.renderSessions();
+                break;
+            case 'notes':
+                this.renderNotes();
+                break;
+            case 'planner':
+                this.renderPlanner();
+                this.updatePlannerStats();
+                break;
+        }
+    }
+
+    // Рендеринг сессий
+    renderSessions() {
+        const container = document.getElementById('sessionsList');
+        const emptyState = document.getElementById('sessionsEmpty');
+        
+        if (!container || !emptyState) return;
+
+        const sessions = this.sessions.getAll();
+        const currentSessionId = this.state.getData('currentSessionId');
+        
+        if (sessions.length === 0) {
+            container.innerHTML = '';
+            emptyState.style.display = 'block';
+            return;
+        }
+        
+        emptyState.style.display = 'none';
+        container.innerHTML = sessions.map(session => {
+            const isActive = session.id === currentSessionId;
+            const messageCount = session.messages.filter(m => m.role !== 'system').length;
+            
+            return `
+                <div class="list-item ${isActive ? 'list-item--selected' : ''}" data-session-id="${session.id}">
+                    <div class="list-item__actions">
+                        <button class="list-item__action-btn list-item__action-btn--edit" 
+                                data-action="edit" 
+                                title="Редагувати">✏️</button>
+                        <button class="list-item__action-btn list-item__action-btn--delete" 
+                                data-action="delete" 
+                                title="Видалити">🗑️</button>
+                    </div>
+                    <div class="list-item__title">${Utils.escapeHTML(session.title)}</div>
+                    <div class="list-item__meta">
+                        <span>${messageCount} повідомлень</span>
+                        <span>${Utils.formatDate(session.updated)}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Привязываем события
+        this.bindSessionEvents(container);
+    }
+
+    // Рендеринг заметок
+    renderNotes() {
+        const container = document.getElementById('notesList');
+        const emptyState = document.getElementById('notesEmpty');
+        
+        if (!container || !emptyState) return;
+
+        const notes = this.notes.getAll();
+        
+        if (notes.length === 0) {
+            container.innerHTML = '';
+            emptyState.style.display = 'block';
+            return;
+        }
+        
+        emptyState.style.display = 'none';
+        container.innerHTML = notes.map(note => {
+            const isBookmark = note.type === 'bookmark';
+            const categoryClass = note.category ? `list-item__category--${note.category}` : '';
+            
+            return `
+                <div class="list-item" data-note-id="${note.id}">
+                    <div class="list-item__actions">
+                        <button class="list-item__action-btn list-item__action-btn--edit" 
+                                data-action="edit" 
+                                title="Редагувати">✏️</button>
+                        <button class="list-item__action-btn list-item__action-btn--delete" 
+                                data-action="delete" 
+                                title="Видалити">🗑️</button>
+                    </div>
+                    <div class="list-item__title">
+                        ${isBookmark ? '🔖' : '📖'} ${Utils.escapeHTML(note.title)}
+                    </div>
+                    <div class="list-item__meta">
+                        ${note.category ? `<span class="list-item__category ${categoryClass}">${this.notes.getCategoryName(note.category)}</span>` : ''}
+                        <span>${Utils.formatDate(note.updated)}</span>
+                    </div>
+                    ${note.reference ? `<div style="font-size: 0.6875rem; color: var(--color-muted); margin-top: 4px;">${Utils.escapeHTML(note.reference)}</div>` : ''}
+                </div>
+            `;
+        }).join('');
+
+        // Привязываем события
+        this.bindNoteEvents(container);
+    }
+
+    // Рендеринг планера
+    renderPlanner() {
+        const container = document.getElementById('plannerList');
+        const emptyState = document.getElementById('plannerEmpty');
+        
+        if (!container || !emptyState) return;
+
+        const currentPlanId = this.state.getData('currentPlanId');
+        const plan = currentPlanId ? this.planner.get(currentPlanId) : null;
+        
+        if (!plan) {
+            container.innerHTML = '';
+            emptyState.style.display = 'block';
+            return;
+        }
+        
+        emptyState.style.display = 'none';
+        container.innerHTML = plan.items.map((item, index) => {
+            const isCompleted = item.completed;
+            const isToday = new Date(item.date).toDateString() === new Date().toDateString();
+            const isPast = new Date(item.date) < new Date().setHours(0, 0, 0, 0);
+            
+            return `
+                <div class="plan-item ${isCompleted ? 'plan-item--completed' : ''} ${isToday ? 'plan-item--today' : ''}" 
+                     data-plan-id="${plan.id}" 
+                     data-item-index="${index}">
+                    <div class="plan-item__checkbox ${isCompleted ? 'plan-item__checkbox--checked' : ''}" 
+                         data-action="toggle"
+                         title="${isCompleted ? 'Відмітити як непрочитане' : 'Відмітити як прочитане'}">
+                        ${isCompleted ? '✓' : ''}
+                    </div>
+                    <div class="plan-item__content">
+                        <div class="plan-item__reading">${Utils.escapeHTML(item.reading)}</div>
+                        <div class="plan-item__date">
+                            День ${item.day} • ${Utils.formatDateShort(item.date)}
+                            ${isToday ? ' • <strong>Сьогодні</strong>' : ''}
+                            ${isPast && !isCompleted ? ' • <span style="color: var(--color-danger);">Прострочено</span>' : ''}
+                        </div>
+                        ${item.note ? `<div class="plan-item__note">${Utils.escapeHTML(item.note)}</div>` : ''}
+                    </div>
+                    <div class="plan-item__actions">
+                        <button class="plan-item__action-btn" 
+                                data-action="note" 
+                                title="Додати нотатку">📝</button>
+                        <button class="plan-item__action-btn" 
+                                data-action="discuss" 
+                                title="Обговорити з AI">💬</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Привязываем события
+        this.bindPlannerEvents(container);
+    }
+
+    // Обновление статистики планера
+    updatePlannerStats() {
+        const stats = this.planner.getStats();
+        
+        const statDay = document.getElementById('statDay');
+        const statCompleted = document.getElementById('statCompleted');
+        const statTotal = document.getElementById('statTotal');
+        const statPercent = document.getElementById('statPercent');
+        const progressFill = document.getElementById('progressFill');
+        
+        if (!stats) {
+            if (statDay) statDay.textContent = '-';
+            if (statCompleted) statCompleted.textContent = '0';
+            if (statTotal) statTotal.textContent = '0';
+            if (statPercent) statPercent.textContent = '0%';
+            if (progressFill) progressFill.style.width = '0%';
+            return;
+        }
+        
+        if (statDay) statDay.textContent = stats.day;
+        if (statCompleted) statCompleted.textContent = stats.completed;
+        if (statTotal) statTotal.textContent = stats.total;
+        if (statPercent) statPercent.textContent = `${stats.percentage}%`;
+        if (progressFill) progressFill.style.width = `${stats.percentage}%`;
+    }
+
+    // ===== СОБЫТИЯ ЭЛЕМЕНТОВ =====
+    
+    // События сессий
+    bindSessionEvents(container) {
+        container.addEventListener('click', (e) => {
+            const sessionItem = e.target.closest('.list-item[data-session-id]');
+            if (!sessionItem) return;
+            
+            const sessionId = sessionItem.getAttribute('data-session-id');
+            const action = e.target.getAttribute('data-action');
+            
+            e.stopPropagation();
+            
+            if (action === 'edit') {
+                this.editSession(sessionId);
+            } else if (action === 'delete') {
+                this.deleteSession(sessionId);
+            } else {
+                this.loadSession(sessionId);
+            }
+        });
+    }
+
+    // События заметок
+    bindNoteEvents(container) {
+        container.addEventListener('click', (e) => {
+            const noteItem = e.target.closest('.list-item[data-note-id]');
+            if (!noteItem) return;
+            
+            const noteId = noteItem.getAttribute('data-note-id');
+            const action = e.target.getAttribute('data-action');
+            
+            e.stopPropagation();
+            
+            if (action === 'edit') {
+                this.editNote(noteId);
+            } else if (action === 'delete') {
+                this.deleteNote(noteId);
+            } else {
+                this.goToNoteMessage(noteId);
+            }
+        });
+    }
+
+    // События планера
+    bindPlannerEvents(container) {
+        container.addEventListener('click', (e) => {
+            const planItem = e.target.closest('.plan-item[data-plan-id]');
+            if (!planItem) return;
+            
+            const planId = planItem.getAttribute('data-plan-id');
+            const itemIndex = parseInt(planItem.getAttribute('data-item-index'));
+            const action = e.target.getAttribute('data-action');
+            
+            e.stopPropagation();
+            
+            if (action === 'toggle') {
+                this.togglePlanItem(planId, itemIndex);
+            } else if (action === 'note') {
+                this.showPlanNoteModal(planId, itemIndex);
+            } else if (action === 'discuss') {
+                this.discussReading(planId, itemIndex);
+            }
+        });
+    }
+
+    // ===== МЕТОДЫ ПОИСКА =====
+    
+    // Выполнение поиска
+    performSearch(query) {
+        const searchResults = document.getElementById('searchResults');
+        
+        if (!query.trim()) {
+            searchResults?.classList.remove('search__results--active');
+            return;
+        }
+        
+        const results = this.search.search(query);
+        this.renderSearchResults(results, query);
+    }
+
+    // Рендеринг результатов поиска
+    renderSearchResults(results, query) {
+        const container = document.getElementById('searchResults');
+        if (!container) return;
+        
+        if (results.length === 0) {
+            container.innerHTML = `
+                <div class="search-result">
+                    <div class="search-result__preview" style="text-align: center; color: var(--color-muted);">
+                        Нічого не знайдено для "${query}"
+                    </div>
+                </div>
+            `;
+        } else {
+            container.innerHTML = results.map(result => {
+                const typeIcon = result.type === 'session' ? '📝' : (result.type === 'note' ? '📖' : '📅');
+                const typeName = result.type === 'session' ? 'сесія' : (result.type === 'note' ? 'нотатка' : 'план');
+                
+                return `
+                    <div class="search-result" data-type="${result.type}" data-id="${result.id}">
+                        <div class="search-result__type">${typeIcon} ${typeName}</div>
+                        <div class="search-result__title">${this.search.highlightText(Utils.escapeHTML(result.title), query)}</div>
+                        <div class="search-result__preview">${this.search.highlightText(Utils.escapeHTML(result.preview), query)}</div>
+                        <div class="search-result__meta">
+                            <span>${result.meta}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Привязываем события к результатам
+            this.bindSearchResultEvents(container);
+        }
+        
+        container.classList.add('search__results--active');
+    }
+
+    // События результатов поиска
+    bindSearchResultEvents(container) {
+        container.addEventListener('click', (e) => {
+            const result = e.target.closest('.search-result[data-type]');
+            if (!result) return;
+            
+            const type = result.getAttribute('data-type');
+            const id = result.getAttribute('data-id');
+            
+            this.selectSearchResult(type, id);
+        });
+    }
+
+    // Выбор результата поиска
+    selectSearchResult(type, id) {
+        // Закрываем результаты поиска
+        const searchResults = document.getElementById('searchResults');
+        const searchInput = document.getElementById('contextSearch');
+        
+        searchResults?.classList.remove('search__results--active');
+        if (searchInput) searchInput.value = '';
+        
+        if (type === 'session') {
+            this.loadSession(id);
+            this.switchTab('sessions');
+            if (window.innerWidth <= 768) {
+                this.closeSidebar();
+            }
+        } else if (type === 'note') {
+            this.goToNoteMessage(id);
+        } else if (type === 'plan') {
+            this.state.updateState({ currentPlanId: id });
+            this.switchTab('planner');
+            if (window.innerWidth <= 768) {
+                this.closeSidebar();
+            }
+        }
+    }
+
+    // ===== МЕТОДЫ СЕССИЙ =====
+    
+    // Загрузка сессии
+    loadSession(sessionId) {
+        if (!this.sessions.load(sessionId)) return;
+        
+        const session = this.sessions.get(sessionId);
+        if (!session) return;
+        
+        // Обновляем заголовок
+        const chatTitle = document.getElementById('chatTitle');
+        if (chatTitle) chatTitle.textContent = session.title;
+        
+        // Очищаем чат
+        const chatArea = document.getElementById('chatArea');
+        if (chatArea) chatArea.innerHTML = '';
+        
+        // Отображаем сообщения (кроме системного)
+        const userMessages = session.messages.filter(msg => msg.role !== 'system');
+        userMessages.forEach((msg) => {
+            this.appendMessage(msg.role, msg.content, msg.id, msg.role === 'assistant');
+        });
+        
+        // Если нет сообщений, показываем приветствие
+        if (userMessages.length === 0) {
+            this.showWelcomeMessage();
+        }
+        
+        this.renderSessions();
+    }
+
+    // Создание новой сессии
+    createSession(title = null) {
+        const sessionId = this.sessions.create(title);
+        this.loadSession(sessionId);
+        return sessionId;
+    }
+
+    // Редактирование сессии
+    editSession(sessionId) {
+        const session = this.sessions.get(sessionId);
+        if (!session) return;
+        
+        const newTitle = prompt('Введіть нову назву сесії:', session.title);
+        if (newTitle && newTitle.trim() !== session.title) {
+            this.sessions.update(sessionId, { title: newTitle.trim() });
+            
+            // Обновляем заголовок если это текущая сессия
+            if (sessionId === this.state.getData('currentSessionId')) {
+                const chatTitle = document.getElementById('chatTitle');
+                if (chatTitle) chatTitle.textContent = newTitle.trim();
+            }
+        }
+    }
+
+    // Удаление сессии
+    deleteSession(sessionId) {
+        const session = this.sessions.get(sessionId);
+        if (!session) return;
+        
+        if (!confirm(`Ви дійсно хочете видалити сесію "${session.title}"?`)) return;
+        
+        this.sessions.delete(sessionId);
+        
+        // Если удаляем текущую сессию, показываем пустое состояние
+        if (sessionId === this.state.getData('currentSessionId')) {
+            const chatArea = document.getElementById('chatArea');
+            const chatTitle = document.getElementById('chatTitle');
+            
+            if (chatArea) {
+                chatArea.innerHTML = `
+                    <div class="empty-state">
+                        <h3 class="empty-state__title">Вітаємо у Біблійному Асистенті!</h3>
+                        <p class="empty-state__text">Створіть нову сесію для початку роботи.</p>
+                    </div>
+                `;
+            }
+            
+            if (chatTitle) chatTitle.textContent = 'Біблійний чат';
+        }
+        
+        NotificationManager.success('Сесію видалено');
+    } false;
+            } else {
+                sidebar.classList.add('sidebar--collapsed');
+                mainContent.classList.add('main-content--sidebar-collapsed');
+                this.ui.sidebarCollapsed =/**
+ * Біблійний Асистент - JavaScript модуль
+ * Версія: 2.0 (оптимізована)
+ */
+
+// ===== КОНФИГУРАЦИЯ ===== 
+const CONFIG = {
+    API: {
+        encrypted: "Z3NrX1NUelQyS1FFQko3MGNDb1hDSllaV0dkeWIzRlk5OHJHN2xvWXUxSmc1SnV0VFZOSzIyVHY=",
+        baseURL: "https://api.groq.com/openai/v1",
+        defaultModel: "meta-llama/llama-4-maverick-17b-128e-instruct"
+    },
+    STORAGE_KEY: 'bibleAssistantData',
+    THEME_KEY: 'theme',
+    VERSION: "2.0",
+    DEBOUNCE_DELAY: 300
+};
+
+// ===== СИСТЕМНЫЙ ПРОМПТ И КНИГИ БИБЛИИ =====
+const BOOK_NAMES = [
+    ["Буття", "Бут."], ["Вихід", "Вих."], ["Левіт", "Лев."], ["Числа", "Чис."], ["Второзаконня", "Втор."],
+    ["Ісуса Навина", "Нав.", "Ісус Навин"], ["Суддів", "Суд.", "Судді"], ["Рути", "Рут.", "Рут"],
+    ["1 Самуїлова", "1 Сам.", "1Сам."], ["2 Самуїлова", "2 Сам.", "2Сам."], ["1 Царів", "1 Цар.", "1Цар."],
+    ["2 Царів", "2 Цар.", "2Цар."], ["1 Хронік", "1 Хр.", "1Хр."], ["2 Хронік", "2 Хр.", "2Хр."],
+    ["Ездри", "Езд.", "Ездра", "Ездр."], ["Неємії", "Неєм.", "Неемія", "Неем."], ["Есфирі", "Есф.", "Естер", "Ест."],
+    ["Йова", "Йов."], ["Псалми", "Пс.", "Псалом"], ["Приповісті Соломонові", "Прип.", "Приповісті", "Пр."],
+    ["Екклезіаст", "Еккл.", "Екклезіяст", "Екл."], ["Пісня Соломона", "Піс.", "Пісня над піснями", "Пісн."],
+    ["Ісаї", "Іс.", "Ісая"], ["Єремії", "Єр."], ["Плач Єремії", "Плач", "Пл.Єр."], ["Єзекиїла", "Єз.", "Єзекіїль"],
+    ["Даниїла", "Дан.", "Даниїл"], ["Осії", "Ос.", "Осія"], ["Йоіла", "Йоіл.", "Йоіл"], ["Амоса", "Ам.", "Амос"],
+    ["Авдія", "Авд.", "Овдій", "Овд."], ["Йони", "Йона", "Йон."], ["Михея", "Мих.", "Михей"], ["Наума", "Наум"],
+    ["Авакума", "Ав.", "Авакум"], ["Софонії", "Соф.", "Софонія"], ["Аггея", "Агг.", "Огій", "Ог."],
+    ["Захарії", "Зах.", "Захарія"], ["Малахії", "Мал.", "Малахія"], ["Матвія", "Матв.", "Мт."],
+    ["Марка", "Марк.", "Мр."], ["Луки", "Лук.", "Лк."], ["Івана", "Ів."], ["Дії апостолів", "Дії", "Дії Апостолів"],
+    ["Римлян", "Рим."], ["1 Коринтян", "1 Кор.", "1Кор."], ["2 Коринтян", "2 Кор.", "2Кор."], ["Галатів", "Гал."],
+    ["Ефесян", "Еф."], ["Филипян", "Фил.", "Филип'ян"], ["Колоссян", "Кол.", "Колосян"], ["1 Солунян", "1 Сол.", "1Сол."],
+    ["2 Солунян", "2 Сол.", "2Сол."], ["1 Тимофія", "1 Тим.", "1Тим."], ["2 Тимофія", "2 Тим.", "2Тим."],
+    ["Тита", "Тит"], ["Филимона", "Филм.", "Флм."], ["Євреїв", "Євр."], ["Якова", "Як."], ["1 Петра", "1 Пет.", "1Пет."],
+    ["2 Петра", "2 Пет.", "2Пет."], ["1 Івана", "1 Ів.", "1Ів."], ["2 Івана", "2 Ів.", "2Ів."],
+    ["3 Івана", "3 Ів.", "3Ів."], ["Юди", "Юд."], ["Об'явлення Івана Богослова", "Об'явл."]
+];
+
+// Создаем карту для быстрого поиска
+const BOOK_INDEX_MAP = new Map();
+BOOK_NAMES.forEach((bookVariants, index) => {
+    bookVariants.forEach(variant => {
+        BOOK_INDEX_MAP.set(variant, index + 1);
+        BOOK_INDEX_MAP.set(variant.replace(/\.$/, ""), index + 1);
+    });
+});
+
+const BOOKS_LIST_FOR_PROMPT = BOOK_NAMES.map(variants => variants.join(", ")).join("; ");
+
+const DEFAULT_PROMPT = `Ти — асистент-богослов і знавець Біблії. Відповідай стисло, точно і з повагою.
+
+ВАЖЛИВО! При згадуванні біблійних книг використовуй ТІЛЬКИ ці назви:
+${BOOKS_LIST_FOR_PROMPT}
+
+Дотримуйся цих правил:
+- Завжди тримайся біблійної теми, уникай оффтопу.
+- Якщо наводиш цитати, вказуй книгу, розділ і вірші у форматі (Книга число:число).
+- За можливості пояснюй контекст (хто говорить, кому, у якій ситуації).
+- Використовуй переклад Огієнка як основний при цитуванні.
+- При згадуванні біблійних джерел ЗАВЖДИ використовуй формат (Книга число:число) у круглих дужках.
+- Коли доречно, додавай порівняння з іншими українськими перекладами і коротко коментуй різницю.
+- Коротко додавай богословські коментарі, чітко відділяючи їх від тексту Писання.
+- Відповідай українською мовою.
+- Подавай цитати з номерами віршів і завжди вказуй джерело у круглих дужках після цитати.
+- НЕ вигадуй інших назв книг, крім зазначених вище!`;
+
+// ===== ПЛАНЫ ЧТЕНИЯ =====
+const READING_PLANS = {
+    yearly: {
+        name: "Річний план",
+        description: "Вся Біблія за 365 днів",
+        generatePlan: function(startDate) {
+            const plan = [];
+            const books = [
+                { name: "Буття", chapters: 50 }, { name: "Вихід", chapters: 40 }, { name: "Левіт", chapters: 27 },
+                { name: "Числа", chapters: 36 }, { name: "Второзаконня", chapters: 34 }, { name: "Ісуса Навина", chapters: 24 },
+                { name: "Суддів", chapters: 21 }, { name: "Рути", chapters: 4 }, { name: "1 Самуїлова", chapters: 31 },
+                { name: "2 Самуїлова", chapters: 24 }, { name: "1 Царів", chapters: 22 }, { name: "2 Царів", chapters: 25 },
+                { name: "1 Хронік", chapters: 29 }, { name: "2 Хронік", chapters: 36 }, { name: "Ездри", chapters: 10 },
+                { name: "Неємії", chapters: 13 }, { name: "Есфирі", chapters: 10 }, { name: "Йова", chapters: 42 },
+                { name: "Псалми", chapters: 150 }, { name: "Приповісті", chapters: 31 }, { name: "Екклезіаст", chapters: 12 },
+                { name: "Пісня Соломона", chapters: 8 }, { name: "Ісаї", chapters: 66 }, { name: "Єремії", chapters: 52 },
+                { name: "Плач Єремії", chapters: 5 }, { name: "Єзекиїла", chapters: 48 }, { name: "Даниїла", chapters: 12 },
+                { name: "Осії", chapters: 14 }, { name: "Йоіла", chapters: 3 }, { name: "Амоса", chapters: 9 },
+                { name: "Авдія", chapters: 1 }, { name: "Йони", chapters: 4 }, { name: "Михея", chapters: 7 },
+                { name: "Наума", chapters: 3 }, { name: "Авакума", chapters: 3 }, { name: "Софонії", chapters: 3 },
+                { name: "Аггея", chapters: 2 }, { name: "Захарії", chapters: 14 }, { name: "Малахії", chapters: 4 },
+                { name: "Матвія", chapters: 28 }, { name: "Марка", chapters: 16 }, { name: "Луки", chapters: 24 },
+                { name: "Івана", chapters: 21 }, { name: "Дії", chapters: 28 }, { name: "Римлян", chapters: 16 },
+                { name: "1 Коринтян", chapters: 16 }, { name: "2 Коринтян", chapters: 13 }, { name: "Галатів", chapters: 6 },
+                { name: "Ефесян", chapters: 6 }, { name: "Филипян", chapters: 4 }, { name: "Колосян", chapters: 4 },
+                { name: "1 Солунян", chapters: 5 }, { name: "2 Солунян", chapters: 3 }, { name: "1 Тимофія", chapters: 6 },
+                { name: "2 Тимофія", chapters: 4 }, { name: "Тита", chapters: 3 }, { name: "Филимона", chapters: 1 },
+                { name: "Євреїв", chapters: 13 }, { name: "Якова", chapters: 5 }, { name: "1 Петра", chapters: 5 },
+                { name: "2 Петра", chapters: 3 }, { name: "1 Івана", chapters: 5 }, { name: "2 Івана", chapters: 1 },
+                { name: "3 Івана", chapters: 1 }, { name: "Юди", chapters: 1 }, { name: "Об'явлення", chapters: 22 }
+            ];
+
+            let currentDate = new Date(startDate);
+            let dayIndex = 0;
+            
+            for (const book of books) {
+                let currentChapter = 1;
+                while (currentChapter <= book.chapters) {
+                    const endChapter = Math.min(currentChapter + 2, book.chapters);
+                    const reading = currentChapter === endChapter 
+                        ? `${book.name} ${currentChapter}`
+                        : `${book.name} ${currentChapter}-${endChapter}`;
+                    
+                    plan.push({
+                        day: dayIndex + 1,
+                        date: new Date(currentDate),
+                        reading: reading,
+                        completed: false,
+                        note: ""
+                    });
+                    
+                    currentChapter = endChapter + 1;
+                    currentDate.setDate(currentDate.getDate() + 1);
+                    dayIndex++;
+                }
+            }
+            
+            return plan;
+        }
+    },
+
+    "90days": {
+        name: "90 днів Нового Заповіту",
+        description: "Весь Новий Заповіт за 90 днів",
+        generatePlan: function(startDate) {
+            const readings = [
+                "Матвія 1-2", "Матвія 3-4", "Матвія 5-6", "Матвія 7-8", "Матвія 9-10",
+                "Матвія 11-12", "Матвія 13-14", "Матвія 15-16", "Матвія 17-18", "Матвія 19-20",
+                "Матвія 21-22", "Матвія 23-24", "Матвія 25-26", "Матвія 27-28",
+                "Марка 1-2", "Марка 3-4", "Марка 5-6", "Марка 7-8", "Марка 9-10",
+                "Марка 11-12", "Марка 13-14", "Марка 15-16",
+                "Луки 1-2", "Луки 3-4", "Луки 5-6", "Луки 7-8", "Луки 9-10",
+                "Луки 11-12", "Луки 13-14", "Луки 15-16", "Луки 17-18", "Луки 19-20",
+                "Луки 21-22", "Луки 23-24",
+                "Івана 1-2", "Івана 3-4", "Івана 5-6", "Івана 7-8", "Івана 9-10",
+                "Івана 11-12", "Івана 13-14", "Івана 15-16", "Івана 17-18", "Івана 19-20", "Івана 21",
+                "Дії 1-2", "Дії 3-4", "Дії 5-6", "Дії 7-8", "Дії 9-10",
+                "Дії 11-12", "Дії 13-14", "Дії 15-16", "Дії 17-18", "Дії 19-20",
+                "Дії 21-22", "Дії 23-24", "Дії 25-26", "Дії 27-28",
+                "Римлян 1-2", "Римлян 3-4", "Римлян 5-6", "Римлян 7-8", "Римлян 9-10",
+                "Римлян 11-12", "Римлян 13-14", "Римлян 15-16",
+                "1 Коринтян 1-2", "1 Коринтян 3-4", "1 Коринтян 5-6", "1 Коринтян 7-8", "1 Коринтян 9-10",
+                "1 Коринтян 11-12", "1 Коринтян 13-14", "1 Коринтян 15-16",
+                "2 Коринтян 1-2", "2 Коринтян 3-4", "2 Коринтян 5-6", "2 Коринтян 7-8", "2 Коринтян 9-10",
+                "2 Коринтян 11-12", "2 Коринтян 13", "Галатів 1-2", "Галатів 3-4", "Галатів 5-6",
+                "Ефесян 1-2", "Ефесян 3-4", "Ефесян 5-6", "Филипян 1-2", "Филипян 3-4",
+                "Колосян 1-2", "Колосян 3-4", "1 Солунян 1-2", "1 Солунян 3-4", "1 Солунян 5",
+                "2 Солунян 1-2", "2 Солунян 3", "1 Тимофія 1-2", "1 Тимофія 3-4", "1 Тимофія 5-6",
+                "2 Тимофія 1-2", "2 Тимофія 3-4", "Тита 1-3", "Филимона 1", "Євреїв 1-2",
+                "Євреїв 3-4", "Євреїв 5-6", "Євреїв 7-8", "Євреїв 9-10", "Євреїв 11-12", "Євреїв 13",
+                "Якова 1-2", "Якова 3-4", "Якова 5", "1 Петра 1-2", "1 Петра 3-4", "1 Петра 5",
+                "2 Петра 1-2", "2 Петра 3", "1 Івана 1-2", "1 Івана 3-4", "1 Івана 5",
+                "2 Івана", "3 Івана", "Юди", "Об'явлення 1-2", "Об'явлення 3-4", "Об'явлення 5-6",
+                "Об'явлення 7-8", "Об'явлення 9-10", "Об'явлення 11-12", "Об'явлення 13-14", 
+                "Об'явлення 15-16", "Об'явлення 17-18", "Об'явлення 19-20", "Об'явлення 21-22"
+            ];
+
+            return this._generatePlanFromReadings(readings, startDate);
+        }
+    },
+
+    psalms30: {
+        name: "Псалми за 30 днів",
+        description: "Всі 150 псалмів за місяць",
+        generatePlan: function(startDate) {
+            const plan = [];
+            let currentDate = new Date(startDate);
+            
+            for (let day = 1; day <= 30; day++) {
+                const startPsalm = Math.floor((day - 1) * 5) + 1;
+                const endPsalm = Math.min(day * 5, 150);
+                
+                plan.push({
+                    day: day,
+                    date: new Date(currentDate),
+                    reading: `Псалми ${startPsalm}-${endPsalm}`,
+                    completed: false,
+                    note: ""
+                });
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            
+            return plan;
+        }
+    },
+
+    proverbs31: {
+        name: "Приповісті за 31 день",
+        description: "Книга Приповістей за місяць",
+        generatePlan: function(startDate) {
+            const plan = [];
+            let currentDate = new Date(startDate);
+            
+            for (let day = 1; day <= 31; day++) {
+                plan.push({
+                    day: day,
+                    date: new Date(currentDate),
+                    reading: `Приповісті ${day}`,
+                    completed: false,
+                    note: ""
+                });
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            
+            return plan;
+        }
+    },
+
+    gospels21: {
+        name: "Євангелія за 21 день",
+        description: "Чотири Євангелія за 3 тижні",
+        generatePlan: function(startDate) {
+            const readings = [
+                "Матвія 1-4", "Матвія 5-7", "Матвія 8-10", "Матвія 11-13", "Матвія 14-17",
+                "Матвія 18-20", "Матвія 21-23", "Матвія 24-28",
+                "Марка 1-4", "Марка 5-8", "Марка 9-12", "Марка 13-16",
+                "Луки 1-4", "Луки 5-8", "Луки 9-12", "Луки 13-16", "Луки 17-20", "Луки 21-24",
+                "Івана 1-4", "Івана 5-8", "Івана 9-12", "Івана 13-17", "Івана 18-21"
+            ];
+
+            return this._generatePlanFromReadings(readings, startDate);
+        }
+    },
+
+    prophets60: {
+        name: "Великі пророки за 60 днів",
+        description: "Ісая, Єремія, Плач, Єзекіїль, Данїїл",
+        generatePlan: function(startDate) {
+            const readings = [];
+            
+            // Исая - 66 глав (33 дня по 2 главы)
+            for (let i = 1; i <= 66; i += 2) {
+                const end = Math.min(i + 1, 66);
+                readings.push(i === end ? `Ісаї ${i}` : `Ісаї ${i}-${end}`);
+            }
+            
+            // Иеремия - 52 главы (26 дней по 2 главы)  
+            for (let i = 1; i <= 52; i += 2) {
+                const end = Math.min(i + 1, 52);
+                readings.push(i === end ? `Єремії ${i}` : `Єремії ${i}-${end}`);
+            }
+            
+            // Плач - 5 глав (1 день)
+            readings.push("Плач Єремії 1-5");
+            
+            // Иезекииль - 48 глав (24 дня по 2 главы)
+            for (let i = 1; i <= 48; i += 2) {
+                const end = Math.min(i + 1, 48);
+                readings.push(i === end ? `Єзекиїла ${i}` : `Єзекиїла ${i}-${end}`);
+            }
+            
+            // Даниил - 12 глав (6 дней по 2 главы)
+            for (let i = 1; i <= 12; i += 2) {
+                const end = Math.min(i + 1, 12);
+                readings.push(i === end ? `Даниїла ${i}` : `Даниїла ${i}-${end}`);
+            }
+
+            return this._generatePlanFromReadings(readings, startDate);
+        }
+    },
+
+    // Вспомогательная функция для генерации плана из списка чтений
+    _generatePlanFromReadings: function(readings, startDate) {
+        const plan = [];
+        let currentDate = new Date(startDate);
+        
+        readings.forEach((reading, index) => {
+            plan.push({
+                day: index + 1,
+                date: new Date(currentDate),
+                reading: reading,
+                completed: false,
+                note: ""
+            });
+            currentDate.setDate(currentDate.getDate() + 1);
+        });
+        
+        return plan;
+    }
+};
+
+// ===== КЛАСС УПРАВЛЕНИЯ СОСТОЯНИЕМ =====
+class StateManager {
+    constructor() {
+        this.data = {
+            sessions: {},
+            notes: {},
+            plans: {},
+            currentSessionId: null,
+            currentPlanId: null,
+            messageCounter: 0
+        };
+        this.listeners = [];
+    }
+
+    // Подписка на изменения
+    subscribe(listener) {
+        this.listeners.push(listener);
+        return () => {
+            const index = this.listeners.indexOf(listener);
+            if (index > -1) {
+                this.listeners.splice(index, 1);
+            }
+        };
+    }
+
+    // Уведомление подписчиков
+    notify(changes) {
+        this.listeners.forEach(listener => {
+            try {
+                listener(changes, this.data);
+            } catch (error) {
+                console.error('Error in state listener:', error);
+            }
+        });
+    }
+
+    // Обновление состояния
+    updateState(updates) {
+        const changes = {};
+        
+        Object.keys(updates).forEach(key => {
+            if (this.data[key] !== updates[key]) {
+                changes[key] = {
+                    old: this.data[key],
+                    new: updates[key]
+                };
+                this.data[key] = updates[key];
+            }
+        });
+
+        if (Object.keys(changes).length > 0) {
+            this.notify(changes);
+        }
+    }
+
+    // Получение данных
+    getData(key = null) {
+        return key ? this.data[key] : { ...this.data };
+    }
+
+    // Сохранение в localStorage
+    saveToStorage() {
+        try {
+            const dataToSave = {
+                ...this.data,
+                lastSaved: Date.now(),
+                version: CONFIG.VERSION
+            };
+            
+            localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(dataToSave));
+            console.log('✅ Данные сохранены:', {
+                sessions: Object.keys(this.data.sessions).length,
+                notes: Object.keys(this.data.notes).length,
+                plans: Object.keys(this.data.plans).length
+            });
+            return true;
+        } catch (error) {
+            console.error('❌ Ошибка сохранения:', error);
+            NotificationManager.error('Помилка збереження даних: ' + error.message);
+            return false;
+        }
+    }
+
+    // Загрузка из localStorage
+    loadFromStorage() {
+        try {
+            const stored = localStorage.getItem(CONFIG.STORAGE_KEY);
+            if (stored) {
+                const parsedData = JSON.parse(stored);
+                
+                // Валидация данных
+                if (this.validateData(parsedData)) {
+                    this.data = {
+                        sessions: parsedData.sessions || {},
+                        notes: parsedData.notes || {},
+                        plans: parsedData.plans || {},
+                        currentSessionId: parsedData.currentSessionId || null,
+                        currentPlanId: parsedData.currentPlanId || null,
+                        messageCounter: parsedData.messageCounter || 0
+                    };
+                    
+                    console.log('✅ Данные загружены:', {
+                        sessions: Object.keys(this.data.sessions).length,
+                        notes: Object.keys(this.data.notes).length,
+                        plans: Object.keys(this.data.plans).length,
+                        version: parsedData.version
+                    });
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.error('❌ Ошибка загрузки:', error);
+            NotificationManager.error('Помилка завантаження даних: ' + error.message);
+        }
+        return false;
+    }
+
+    // Валидация данных
+    validateData(data) {
+        if (!data || typeof data !== 'object') return false;
+        
+        const required = ['sessions', 'notes', 'plans'];
+        return required.every(key => 
+            data.hasOwnProperty(key) && typeof data[key] === 'object'
+        );
+    }
+}
+
+// ===== КЛАСС УПРАВЛЕНИЯ УВЕДОМЛЕНИЯМИ =====
+class NotificationManager {
+    static show(message, type = 'info', duration = 3000) {
+        // Создаем контейнер если его нет
+        let container = document.getElementById('notifications-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'notifications-container';
+            container.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 10000;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                max-width: 300px;
+            `;
+            document.body.appendChild(container);
+        }
+
+        // Создаем уведомление
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        `;
+
+        // Цвета для разных типов
+        const colors = {
+            info: '#1a73e8',
+            success: '#34a853',
+            error: '#ea4335',
+            warning: '#ff9800'
+        };
+
+        notification.style.backgroundColor = colors[type] || colors.info;
+        notification.textContent = message;
+
+        // Добавляем в контейнер
+        container.appendChild(notification);
+
+        // Анимация появления
+        setTimeout(() => {
+            notification.style.transform = 'translateX(0)';
+        }, 10);
+
+        // Удаление по клику
+        notification.addEventListener('click', () => {
+            this.remove(notification);
+        });
+
+        // Автоудаление
+        if (duration > 0) {
+            setTimeout(() => {
+                this.remove(notification);
+            }, duration);
+        }
+
+        return notification;
+    }
+
+    static remove(notification) {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }
+
+    static success(message, duration) {
+        return this.show(message, 'success', duration);
+    }
+
+    static error(message, duration) {
+        return this.show(message, 'error', duration);
+    }
+
+    static warning(message, duration) {
+        return this.show(message, 'warning', duration);
+    }
+}
+
+// ===== УТИЛИТЫ =====
+class Utils {
+    // Генерация уникального ID
+    static generateId() {
+        return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    // Форматирование даты
+    static formatDate(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffHours = diffMs / (1000 * 60 * 60);
+        
+        if (diffHours < 1) {
+            const diffMins = Math.floor(diffMs / (1000 * 60));
+            return diffMins <= 1 ? 'щойно' : `${diffMins} хв тому`;
+        } else if (diffHours < 24) {
+            return `${Math.floor(diffHours)} год тому`;
+        } else if (diffHours < 48) {
+            return 'вчора';
+        } else {
+            return date.toLocaleDateString('uk-UA');
+        }
+    }
+
+    // Форматирование короткой даты
+    static formatDateShort(date) {
+        return new Date(date).toLocaleDateString('uk-UA', { 
+            day: 'numeric', 
+            month: 'short' 
+        });
+    }
+
+    // Экранирование HTML
+    static escapeHTML(str) {
+        if (!str) return "";
+        return str.replace(/[&<>"']/g, m => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        }[m]));
+    }
+
+    // Преобразование ссылок
+    static linkify(text) {
+        return text.replace(
+            /(https?:\/\/[^\s)<>"]+)/g, 
+            '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+        );
+    }
+
+    // Дебаунс функций
+    static debounce(func, delay) {
+        let timeoutId;
+        return function (...args) {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => func.apply(this, args), delay);
+        };
+    }
+
+    // Троттлинг функций
+    static throttle(func, limit) {
+        let inThrottle;
+        return function(...args) {
+            if (!inThrottle) {
+                func.apply(this, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
+    }
+
+    // Получение номера книги Библии
+    static getBookNumber(bookName) {
+        if (!bookName) return null;
+        
+        const normalized = bookName.trim();
+        
+        if (BOOK_INDEX_MAP.has(normalized)) {
+            return BOOK_INDEX_MAP.get(normalized);
+        }
+        
+        const withoutDot = normalized.replace(/\.$/, "");
+        if (BOOK_INDEX_MAP.has(withoutDot)) {
+            return BOOK_INDEX_MAP.get(withoutDot);
+        }
+        
+        const lowerNormalized = normalized.toLowerCase();
+        for (let [key, value] of BOOK_INDEX_MAP) {
+            if (key.toLowerCase() === lowerNormalized) {
+                return value;
+            }
+        }
+        
+        return null;
+    }
+
+    // Выделение библейских ссылок
+    static highlightBibleRefs(text) {
+        const bibleRefRegex = /\(?(?:(?:[1-3]\s)?[А-ЯІЄҐ][а-яіїєґ']+(?:\s[А-ЯІЄҐ][а-яіїєґ']+)*\.?\s*\d+(?::\d+(?:-\d+)?|-\d+)?(?:\s*,\s*(?:[1-3]\s)?[А-ЯІЄҐ][а-яіїєґ']+(?:\s[А-ЯІЄҐ][а-яіїєґ']+)*\.?\s*\d+(?::\d+(?:-\d+)?|-\d+)?)*)\)?/g;
+        
+        return text.replace(bibleRefRegex, (match) => {
+            if (match.includes('<span class="bible-ref">')) {
+                return match;
+            }
+            
+            if (match.includes(',')) {
+                const content = match.replace(/[()]/g, '');
+                const refs = content.split(',').map(ref => ref.trim());
+                const highlightedRefs = refs.map(ref => 
+                    `<span class="bible-ref">${ref}</span>`
+                ).join(', ');
+                return match.startsWith('(') ? `(${highlightedRefs})` : highlightedRefs;
+            } else {
+                const cleanRef = match.replace(/[()]/g, '');
+                return match.startsWith('(') && match.endsWith(')') 
+                    ? `(<span class="bible-ref">${cleanRef}</span>)`
+                    : `<span class="bible-ref">${match}</span>`;
+            }
+        });
+    }
+
+    // Форматирование ответа ассистента
+    static formatAssistantMessage(text) {
+        let formatted = this.escapeHTML(text);
+        formatted = this.linkify(formatted);
+        formatted = this.highlightBibleRefs(formatted);
+        return formatted.replace(/\n/g, "<br>");
+    }
+}
+
+// ===== КЛАСС API МЕНЕДЖЕР =====
+class APIManager {
+    constructor() {
+        this.apiKey = atob(CONFIG.API.encrypted);
+        this.baseURL = CONFIG.API.baseURL;
+        this.isLoading = false;
+    }
+
+    // Загрузка списка моделей
+    async loadModels() {
+        try {
+            const response = await fetch(`${this.baseURL}/models`, {
+                headers: { "Authorization": `Bearer ${this.apiKey}` }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            return data?.data || [];
+        } catch (error) {
+            console.error('Ошибка загрузки моделей:', error);
+            throw error;
+        }
+    }
+
+    // Отправка сообщения в чат
+    async sendMessage(messages, model = CONFIG.API.defaultModel) {
+        if (this.isLoading) {
+            throw new Error('Запрос уже выполняется');
+        }
+
+        this.isLoading = true;
+        
+        try {
+            const response = await fetch(`${this.baseURL}/chat/completions`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${this.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: messages,
+                    temperature: 0.7,
+                    max_tokens: 1500
+                })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => "");
+                throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data?.choices?.[0]?.message?.content || "Немає відповіді.";
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    // Проверка загрузки
+    get loading() {
+        return this.isLoading;
+    }
+}
+
+// ===== КЛАСС УПРАВЛЕНИЯ СЕССИЯМИ =====
+class SessionManager {
+    constructor(stateManager) {
+        this.state = stateManager;
+    }
+
+    // Создание новой сессии
+    create(title = null) {
+        const sessionId = Utils.generateId();
+        const sessionTitle = title || `Сесія ${Object.keys(this.state.getData('sessions')).length + 1}`;
+        
+        const session = {
+            id: sessionId,
+            title: sessionTitle,
+            messages: [{ role: "system", content: DEFAULT_PROMPT }],
+            created: Date.now(),
+            updated: Date.now()
+        };
+
+        const sessions = { ...this.state.getData('sessions') };
+        sessions[sessionId] = session;
+        
+        this.state.updateState({ 
+            sessions: sessions,
+            currentSessionId: sessionId 
+        });
+        
+        return sessionId;
+    }
+
+    // Загрузка сессии
+    load(sessionId) {
+        const sessions = this.state.getData('sessions');
+        if (!sessions[sessionId]) {
+            console.error('Сессия не найдена:', sessionId);
+            return false;
+        }
+
+        this.state.updateState({ currentSessionId: sessionId });
+        return true;
+    }
+
+    // Добавление сообщения
+    addMessage(sessionId, message) {
+        const sessions = { ...this.state.getData('sessions') };
+        const session = sessions[sessionId];
+        
+        if (!session) return false;
+
+        session.messages.push(message);
+        session.updated = Date.now();
+        sessions[sessionId] = session;
+
+        this.state.updateState({ sessions: sessions });
+        return true;
+    }
+
+    // Обновление сессии
+    update(sessionId, updates) {
+        const sessions = { ...this.state.getData('sessions') };
+        const session = sessions[sessionId];
+        
+        if (!session) return false;
+
+        Object.assign(session, updates, { updated: Date.now() });
+        sessions[sessionId] = session;
+
+        this.state.updateState({ sessions: sessions });
+        return true;
+    }
+
+    // Удаление сессии
+    delete(sessionId) {
+        const sessions = { ...this.state.getData('sessions') };
+        const notes = { ...this.state.getData('notes') };
+        
+        // Удаляем сессию
+        delete sessions[sessionId];
+        
+        // Удаляем связанные заметки
+        Object.keys(notes).forEach(noteId => {
+            if (notes[noteId].sessionId === sessionId) {
+                delete notes[noteId];
+            }
+        });
+
+        // Обновляем текущую сессию если нужно
+        let newCurrentSessionId = this.state.getData('currentSessionId');
+        if (newCurrentSessionId === sessionId) {
+            const sessionIds = Object.keys(sessions);
+            newCurrentSessionId = sessionIds.length > 0 ? sessionIds[sessionIds.length - 1] : null;
+        }
+
+        this.state.updateState({ 
+            sessions: sessions,
+            notes: notes,
+            currentSessionId: newCurrentSessionId 
+        });
+
+        return true;
+    }
+
+    // Получение сессии
+    get(sessionId) {
+        return this.state.getData('sessions')[sessionId] || null;
+    }
+
+    // Получение всех сессий
+    getAll() {
+        return Object.values(this.state.getData('sessions'))
+            .sort((a, b) => b.updated - a.updated);
+    }
+}
+
+// ===== КЛАСС УПРАВЛЕНИЯ ЗАМЕТКАМИ =====
+class NotesManager {
+    constructor(stateManager) {
+        this.state = stateManager;
+    }
+
+    // Создание заметки
+    create(data) {
+        const noteId = Utils.generateId();
+        const note = {
+            id: noteId,
+            title: data.title,
+            type: data.type || 'note',
+            category: data.category || '',
+            reference: data.reference || '',
+            content: data.content || '',
+            sessionId: data.sessionId || this.state.getData('currentSessionId'),
+            messageId: data.messageId || null,
+            created: Date.now(),
+            updated: Date.now()
+        };
+
+        const notes = { ...this.state.getData('notes') };
+        notes[noteId] = note;
+
+        this.state.updateState({ notes: notes });
+        return noteId;
+    }
+
+    // Обновление заметки
+    update(noteId, updates) {
+        const notes = { ...this.state.getData('notes') };
+        const note = notes[noteId];
+        
+        if (!note) return false;
+
+        Object.assign(note, updates, { updated: Date.now() });
+        notes[noteId] = note;
+
+        this.state.updateState({ notes: notes });
+        return true;
+    }
+
+    // Удаление заметки
+    delete(noteId) {
+        const notes = { ...this.state.getData('notes') };
+        delete notes[noteId];
+
+        this.state.updateState({ notes: notes });
+        return true;
+    }
+
+    // Получение заметки
+    get(noteId) {
+        return this.state.getData('notes')[noteId] || null;
+    }
+
+    // Получение всех заметок
+    getAll() {
+        return Object.values(this.state.getData('notes'))
+            .sort((a, b) => b.updated - a.updated);
+    }
+
+    // Получение названия категории
+    getCategoryName(category) {
+        const categories = {
+            'study': '📖 Вивчення',
+            'prayer': '🙏 Молитва',
+            'sermon': '🎤 Проповідь',
+            'personal': '💭 Особисте',
+            'plan': '📅 План читання'
+        };
+        return categories[category] || category;
+    }
+}
+
+// ===== КЛАСС УПРАВЛЕНИЯ ПЛАНАМИ =====
+class PlannerManager {
+    constructor(stateManager) {
+        this.state = stateManager;
+    }
+
+    // Создание плана
+    create(data) {
+        const planId = Utils.generateId();
+        const startDate = new Date(data.startDate);
+        
+        let planItems = [];
+        if (data.type === 'custom') {
+            const customReadings = data.customPlan.split('\n')
+                .filter(line => line.trim())
+                .map(line => line.trim());
+            
+            let currentDate = new Date(startDate);
+            
+            customReadings.forEach((reading, index) => {
+                planItems.push({
+                    day: index + 1,
+                    date: new Date(currentDate),
+                    reading: reading,
+                    completed: false,
+                    note: ""
+                });
+                currentDate.setDate(currentDate.getDate() + 1);
+            });
+        } else if (READING_PLANS[data.type]) {
+            planItems = READING_PLANS[data.type].generatePlan(startDate);
+        }
+        
+        const plan = {
+            id: planId,
+            title: data.title,
+            type: data.type,
+            description: READING_PLANS[data.type]?.description || '',
+            startDate: startDate,
+            items: planItems,
+            created: Date.now(),
+            updated: Date.now()
+        };
+
+        const plans = { ...this.state.getData('plans') };
+        plans[planId] = plan;
+        
+        this.state.updateState({ 
+            plans: plans,
+            currentPlanId: planId 
+        });
+        
+        return planId;
+    }
+
+    // Переключение статуса чтения
+    toggleItem(planId, itemIndex) {
+        const plans = { ...this.state.getData('plans') };
+        const plan = plans[planId];
+        
+        if (!plan || !plan.items[itemIndex]) return false;
+        
+        plan.items[itemIndex].completed = !plan.items[itemIndex].completed;
+        plan.updated = Date.now();
+        plans[planId] = plan;
+        
+        this.state.updateState({ plans: plans });
+        return true;
+    }
+
+    // Добавление заметки к чтению
+    addNote(planId, itemIndex, note) {
+        const plans = { ...this.state.getData('plans') };
+        const plan = plans[planId];
+        
+        if (!plan || !plan.items[itemIndex]) return false;
+        
+        plan.items[itemIndex].note = note;
+        plan.updated = Date.now();
+        plans[planId] = plan;
+        
+        this.state.updateState({ plans: plans });
+        return true;
+    }
+
+    // Удаление плана
+    delete(planId) {
+        const plans = { ...this.state.getData('plans') };
+        delete plans[planId];
+        
+        // Обновляем текущий план если нужно
+        let newCurrentPlanId = this.state.getData('currentPlanId');
+        if (newCurrentPlanId === planId) {
+            const planIds = Object.keys(plans);
+            newCurrentPlanId = planIds.length > 0 ? planIds[planIds.length - 1] : null;
+        }
+        
+        this.state.updateState({ 
+            plans: plans,
+            currentPlanId: newCurrentPlanId 
+        });
+        
+        return true;
+    }
+
+    // Получение плана
+    get(planId) {
+        return this.state.getData('plans')[planId] || null;
+    }
+
+    // Получение всех планов
+    getAll() {
+        return Object.values(this.state.getData('plans'))
+            .sort((a, b) => b.updated - a.updated);
+    }
+
+    // Получение статистики текущего плана
+    getStats(planId = null) {
+        const currentPlanId = planId || this.state.getData('currentPlanId');
+        if (!currentPlanId) return null;
+
+        const plan = this.get(currentPlanId);
+        if (!plan) return null;
+
+        const today = new Date();
+        const startDate = new Date(plan.startDate);
+        const daysSinceStart = Math.floor((today - startDate) / (1000 * 60 * 60 * 24)) + 1;
+        
+        const completed = plan.items.filter(item => item.completed).length;
+        const total = plan.items.length;
+        const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+        
+        return {
+            day: Math.max(1, daysSinceStart),
+            completed: completed,
+            total: total,
+            percentage: percentage
+        };
+    }
+}
+
+// ===== КЛАСС ПОИСКА =====
+class SearchManager {
+    constructor(stateManager, sessionManager, notesManager, plannerManager) {
+        this.state = stateManager;
+        this.sessions = sessionManager;
+        this.notes = notesManager;
+        this.planner = plannerManager;
+    }
+
+    // Поиск по всем данным
+    search(query) {
+        if (!query.trim()) return [];
+        
+        const results = [];
+        const searchTerm = query.toLowerCase();
+        
+        // Поиск в сессиях
+        this.sessions.getAll().forEach(session => {
+            let relevanceScore = 0;
+            let matchedContent = '';
+            
+            // Проверяем заголовок
+            if (session.title.toLowerCase().includes(searchTerm)) {
+                relevanceScore += 10;
+                matchedContent = session.title;
+            }
+            
+            // Проверяем сообщения
+            if (session.messages) {
+                session.messages.forEach(msg => {
+                    if (msg.role !== 'system' && msg.content.toLowerCase().includes(searchTerm)) {
+                        relevanceScore += 5;
+                        if (!matchedContent) {
+                            matchedContent = msg.content.substring(0, 100) + '...';
+                        }
+                    }
+                });
+            }
+            
+            if (relevanceScore > 0) {
+                results.push({
+                    type: 'session',
+                    id: session.id,
+                    title: session.title,
+                    preview: matchedContent || `${session.messages.filter(m => m.role !== 'system').length} повідомлень`,
+                    meta: Utils.formatDate(session.updated),
+                    relevance: relevanceScore
+                });
+            }
+        });
+        
+        // Поиск в заметках
+        this.notes.getAll().forEach(note => {
+            let relevanceScore = 0;
+            let matchedContent = '';
+            
+            // Проверяем заголовок
+            if (note.title.toLowerCase().includes(searchTerm)) {
+                relevanceScore += 10;
+                matchedContent = note.title;
+            }
+            
+            // Проверяем содержимое
+            if (note.content && note.content.toLowerCase().includes(searchTerm)) {
+                relevanceScore += 8;
+                if (!matchedContent) {
+                    matchedContent = note.content.substring(0, 100) + '...';
+                }
+            }
+            
+            // Проверяем библейские ссылки
+            if (note.reference && note.reference.toLowerCase().includes(searchTerm)) {
+                relevanceScore += 6;
+                if (!matchedContent) {
+                    matchedContent = note.reference;
+                }
+            }
+            
+            if (relevanceScore > 0) {
+                results.push({
+                    type: 'note',
+                    id: note.id,
+                    title: note.title,
+                    preview: matchedContent || (note.type === 'bookmark' ? '🔖 Закладка' : '📖 Нотатка'),
+                    meta: note.category ? this.notes.getCategoryName(note.category) : '🔖 Закладка',
+                    relevance: relevanceScore
+                });
+            }
+        });
+        
+        // Поиск в планах
+        this.planner.getAll().forEach(plan => {
+            let relevanceScore = 0;
+            let matchedContent = '';
+            
+            // Проверяем заголовок
+            if (plan.title.toLowerCase().includes(searchTerm)) {
+                relevanceScore += 10;
+                matchedContent = plan.title;
+            }
+            
+            // Проверяем чтения
+            plan.items.forEach(item => {
+                if (item.reading.toLowerCase().includes(searchTerm)) {
+                    relevanceScore += 7;
+                    if (!matchedContent) {
+                        matchedContent = item.reading;
+                    }
+                }
+                
+                if (item.note && item.note.toLowerCase().includes(searchTerm)) {
+                    relevanceScore += 5;
+                    if (!matchedContent) {
+                        matchedContent = item.note.substring(0, 100) + '...';
+                    }
+                }
+            });
+            
+            if (relevanceScore > 0) {
+                const completed = plan.items.filter(item => item.completed).length;
+                results.push({
+                    type: 'plan',
+                    id: plan.id,
+                    title: plan.title,
+                    preview: matchedContent || plan.description,
+                    meta: `${completed}/${plan.items.length} днів`,
+                    relevance: relevanceScore
+                });
+            }
+        });
+        
+        // Сортируем по релевантности
+        return results.sort((a, b) => b.relevance - a.relevance);
+    }
+
+    // Подсветка найденного текста
+    highlightText(text, query) {
+        const regex = new RegExp(`(${query})`, 'gi');
+        return text.replace(regex, '<mark>$1</mark>');
+    }
+}
+
+// ===== ГЛАВНЫЙ КЛАСС ПРИЛОЖЕНИЯ =====
+class BibleAssistantApp {
+    constructor() {
+        // Инициализация менеджеров
+        this.state = new StateManager();
+        this.api = new APIManager();
+        this.sessions = new SessionManager(this.state);
+        this.notes = new NotesManager(this.state);
+        this.planner = new PlannerManager(this.state);
+        this.search = new SearchManager(this.state, this.sessions, this.notes, this.planner);
+        
+        // Состояние UI
+        this.ui = {
+            activeTab: 'sessions',
+            sidebarCollapsed: false,
+            chatControlsVisible: true,
+            currentMessageForNote: null,
+            currentPlanItemForNote: null
+        };
+
+        // Подписка на изменения состояния
+        this.state.subscribe((changes) => {
+            this.handleStateChange(changes);
+        });
+
+        // Инициализация
+        this.init();
+    }
+
+    // Инициализация приложения
+    async init() {
+        try {
+            // Загружаем данные
+            this.state.loadFromStorage();
+            
+            // Инициализируем UI
+            this.initializeUI();
+            
+            // Загружаем модели AI
+            await this.loadModels();
+            
+            // Применяем тему
+            this.applyTheme();
+            
+            // Отображаем данные
+            this.renderAll();
+            
+            // Загружаем текущую сессию если есть
+            const currentSessionId = this.state.getData('currentSessionId');
+            if (currentSessionId) {
+                this.loadSession(currentSessionId);
+            }
+
+            console.log('✅ Приложение инициализировано');
+        } catch (error) {
+            console.error('❌ Ошибка инициализации:', error);
+            NotificationManager.error('Помилка ініціалізації додатку');
+        }
+    }
+
+    // Инициализация UI элементов
+    initializeUI() {
+        // Боковая панель
+        this.bindSidebarEvents();
+        
+        // Табы
+        this.bindTabEvents();
+        
+        // Поиск
+        this.bindSearchEvents();
+        
+        // Чат
+        this.bindChatEvents();
+        
+        // Модальные окна
+        this.bindModalEvents();
+        
+        // Прочие события
+        this.bindMiscEvents();
+    }
+
+    // События боковой панели
+    bindSidebarEvents() {
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const menuToggle = document.getElementById('menuToggle');
+        const overlay = document.getElementById('overlay');
+        
+        sidebarToggle?.addEventListener('click', () => this.toggleSidebar());
+        menuToggle?.addEventListener('click', () => this.toggleSidebar());
+        overlay?.addEventListener('click', () => this.closeSidebar());
+        
+        // Создание и опции
+        document.getElementById('createNewBtn')?.addEventListener('click', () => this.showCreateModal());
+        document.getElementById('showOptionsBtn')?.addEventListener('click', () => this.showOptionsModal());
+    }
+
+    // События табов
+    bindTabEvents() {
+        document.querySelectorAll('.tabs__item').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.getAttribute('data-tab');
+                this.switchTab(tabName);
+            });
+        });
+    }
+
+    // События поиска
+    bindSearchEvents() {
+        const searchInput = document.getElementById('contextSearch');
+        const searchResults = document.getElementById('searchResults');
+        
+        if (searchInput) {
+            const debouncedSearch = Utils.debounce((value) => {
+                this.performSearch(value);
+            }, CONFIG.DEBOUNCE_DELAY);
+            
+            searchInput.addEventListener('input', (e) => {
+                debouncedSearch(e.target.value);
+            });
+            
+            searchInput.addEventListener('blur', () => {
+                setTimeout(() => {
+                    searchResults.classList.remove('search__results--active');
+                }, 200);
+            });
+        }
+    }
+
+    // События чата
+    bindChatEvents() {
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const toggleControls = document.getElementById('toggleChatControls');
+        const themeBtn = document.getElementById('themeBtn');
+        const helpBtn = document.getElementById('showHelpBtn');
+        
+        userInput?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this.sendMessage();
+            }
+        });
+        
+        sendBtn?.addEventListener('click', () => this.sendMessage());
+        toggleControls?.addEventListener('click', () => this.toggleChatControls());
+        themeBtn?.addEventListener('click', () => this.toggleTheme());
+        helpBtn?.addEventListener('click', () => this.showHelpModal());
+    }
+
+    // События модальных окон
+    bindModalEvents() {
+        // Создание элементов
+        const createForm = document.getElementById('createForm');
+        const createType = document.getElementById('createType');
+        const createPlanType = document.getElementById('createPlanType');
+        const cancelCreateBtn = document.getElementById('cancelCreateBtn');
+        
+        createForm?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleCreateSubmit();
+        });
+        
+        createType?.addEventListener('change', () => this.updateCreateFields());
+        createPlanType?.addEventListener('change', () => this.updatePlanFields());
+        cancelCreateBtn?.addEventListener('click', () => this.closeModal());
+        
+        // Заметка к сообщению
+        const messageNoteForm = document.getElementById('messageNoteForm');
+        const messageNoteType = document.getElementById('messageNoteType');
+        const cancelMessageNoteBtn = document.getElementById('cancelMessageNoteBtn');
+        
+        messageNoteForm?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleMessageNoteSubmit();
+        });
+        
+        messageNoteType?.addEventListener('change', () => this.updateMessageNoteFields());
+        cancelMessageNoteBtn?.addEventListener('click', () => this.closeModal());
+        
+        // Заметка к плану
+        const planNoteForm = document.getElementById('planNoteForm');
+        const cancelPlanNoteBtn = document.getElementById('cancelPlanNoteBtn');
+        
+        planNoteForm?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handlePlanNoteSubmit();
+        });
+        
+        cancelPlanNoteBtn?.addEventListener('click', () => this.closeModal());
+        
+        // Опции
+        document.getElementById('exportDataBtn')?.addEventListener('click', () => this.exportData());
+        document.getElementById('importDataBtn')?.addEventListener('click', () => this.importData());
+        document.getElementById('clearAllBtn')?.addEventListener('click', () => this.clearAllData());
+        document.getElementById('closeOptionsBtn')?.addEventListener('click', () => this.closeModal());
+        document.getElementById('closeHelpBtn')?.addEventListener('click', () => this.closeModal());
+        
+        // Закрытие по клику вне модального окна
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                this.closeModal();
+            }
+        });
+    }
+
+    // Прочие события
+    bindMiscEvents() {
+        // Горячие клавиши
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + N - новая сессия
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                e.preventDefault();
+                this.showCreateModal();
+            }
+            
+            // Escape - закрыть модальные окна
+            if (e.key === 'Escape') {
+                this.closeModal();
+                this.closeSidebar();
+            }
+        });
+
+        // Обработка изменения размера окна
+        window.addEventListener('resize', Utils.debounce(() => {
+            this.handleResize();
+        }, 250));
+    }
+
+    // Обработка изменений состояния
+    handleStateChange(changes) {
+        // Сохраняем данные при изменениях
+        this.state.saveToStorage();
+        
+        // Обновляем UI при необходимости
+        if (changes.sessions || changes.currentSessionId) {
+            this.renderSessions();
+            
+            if (changes.currentSessionId) {
+                this.loadSession(changes.currentSessionId.new);
+            }
+        }
+        
+        if (changes.notes) {
+            this.renderNotes();
+        }
+        
+        if (changes.plans || changes.currentPlanId) {
+            this.renderPlanner();
+        }
+    }
+}
+</script>
+</body>
+</html>
