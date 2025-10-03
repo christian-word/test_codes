@@ -1,0 +1,211 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Тестовый видеоплеер с синхронизацией по времени</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    #player-container {
+      width: 100%;
+      max-width: 800px;
+      margin-bottom: 20px;
+    }
+    #player {
+      width: 100%;
+      height: auto;
+      background: #000;
+      border: 2px solid #3498db;
+    }
+    #controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #status-display {
+      margin-top: 20px;
+      padding: 15px;
+      background: #fff;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 800px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+  </style>
+</head>
+<body>
+  <h1>Тестовый видеоплеер</h1>
+  
+  <div id="player-container">
+    <video id="player" controls autoplay></video>
+  </div>
+  
+  <div id="controls">
+    <button id="playButton">▶ Запустить</button>
+  </div>
+  
+  <div id="status-display">
+    <h3>Лог синхронизации:</h3>
+    <pre id="statusLog"></pre>
+  </div>
+  
+  <script>
+    // -------------- Конфигурация --------------
+    // Используйте эти ссылки для тестирования.
+    // Убедитесь, что длительность (duration) указана верно.
+    const TEST_PLAYLIST = {
+      broadcastStartTime: "2025-10-03T19:00:00+03:00", // Пример начала трансляции в UTC
+      programSchedule: [
+        { "url": "https://bogmedia.org/get_file/3/e96ceea1254839a380e5ca50d500cd73/23000/23934/23934_480p.mp4/?br=847&embed=true&rnd=1759417461002", "duration": 5397, "title": "Big Buck Bunny (Trailer)" },
+        { "url": "https://bogmedia.org/get_file/3/37b1bc90dd05c3ec8f0566f4f23ffcf9/23000/23975/23975_480p.mp4/?br=474&embed=true&rnd=1759415388626", "duration":  5706 , "title": "Sintel (Trailer)" },
+        { "url": "https://bogmedia.org/get_file/3/14eda8f3bcc0286a64287af6e0ba9e47/7000/7298/7298.mp4/?br=588&embed=true&rnd=1759421719020", "duration":  5726 , "title": "Sintel (Trailer)" },
+        { "url": "https://mirvera.info/films/VOSKRESENIE-KHRISTA-2016.mp4", "duration":  6458 , "title": "Sintel (Trailer)" } ,
+        { "url": "https://mirvera.info/films/DESIAT-ZAPOVEDEI-2006.mp4", "duration":  10536 , "title": "Sintel (Trailer)" }, 
+        { "url": "https://bogmedia.org/get_file/1/a2fc8e84e4a63c4e38ebf8725972ef99/23000/23427/23427_480p.mp4/?br=597&rnd=1759425134632", "duration": 6637 , "title": "Sintel (Trailer)" } 
+
+     ]
+    };
+    
+    // -------------- Инициализация --------------
+    const player = document.getElementById('player');
+    const playButton = document.getElementById('playButton');
+    const statusLog = document.getElementById('statusLog');
+    
+    let broadcastProgram = null;
+    let currentVideoIndex = 0;
+    let syncTimer = null;
+    let lastLogTime = 0;
+
+    logStatus("Плеер готов к запуску. Нажмите 'Запустить'.");
+
+    function initPlayer() {
+      let t = 0;
+      TEST_PLAYLIST.programSchedule.forEach(v => {
+        v.startTime = t;
+        t += v.duration;
+      });
+      broadcastProgram = TEST_PLAYLIST;
+      
+      playButton.addEventListener('click', startBroadcast);
+      player.addEventListener('ended', onVideoEnded);
+    }
+
+    function startBroadcast() {
+      if (!broadcastProgram) return;
+      if (syncTimer) clearInterval(syncTimer);
+      
+      logStatus("Запускаем синхронизацию...");
+      
+      const nowUTS = Date.now() / 1000;
+      const broadcastStartTimeInSeconds = new Date(broadcastProgram.broadcastStartTime).getTime() / 1000;
+      let elapsedTime = nowUTS - broadcastStartTimeInSeconds;
+      
+      let vid = null, sec = 0, idx = 0;
+      for (let i = 0; i < broadcastProgram.programSchedule.length; i++) {
+        const v = broadcastProgram.programSchedule[i];
+        if (elapsedTime >= v.startTime && elapsedTime < v.startTime + v.duration) {
+          vid = v;
+          sec = elapsedTime - v.startTime;
+          idx = i;
+          break;
+        }
+      }
+      
+      if (vid) {
+        logStatus(`Загрузка видео: "${vid.title}". Начинаем с позиции ${sec.toFixed(2)} с.`);
+        player.src = vid.url + `#t=${Math.max(0, sec)}`;
+        player.play();
+        currentVideoIndex = idx;
+        startSyncTimer(broadcastStartTimeInSeconds);
+      } else {
+        logStatus("Плейлист закончился.");
+      }
+    }
+    
+    function onVideoEnded() {
+      currentVideoIndex++;
+      if (currentVideoIndex < broadcastProgram.programSchedule.length) {
+        const v = broadcastProgram.programSchedule[currentVideoIndex];
+        logStatus(`Видео завершилось. Загрузка следующего: "${v.title}".`);
+        player.src = v.url;
+        player.play();
+      } else {
+        logStatus("Плейлист закончился.");
+        clearInterval(syncTimer);
+      }
+    }
+
+    function startSyncTimer(broadcastStartTimeInSeconds) {
+      syncTimer = setInterval(() => {
+        if (player.paused || player.ended) return;
+
+        const nowUTS = Date.now() / 1000;
+        const elapsedTime = nowUTS - broadcastStartTimeInSeconds;
+        
+        let idealTimeInCurrentVideo = 0;
+        let found = false;
+        
+        for (let i = 0; i < broadcastProgram.programSchedule.length; i++) {
+          const v = broadcastProgram.programSchedule[i];
+          if (elapsedTime >= v.startTime && elapsedTime < v.startTime + v.duration) {
+            idealTimeInCurrentVideo = elapsedTime - v.startTime;
+            if (i !== currentVideoIndex) {
+              currentVideoIndex = i;
+              player.src = v.url + `#t=${Math.max(0, idealTimeInCurrentVideo)}`;
+              player.play();
+              logStatus(`Синхронизация: Переключение на видео "${v.title}"`);
+              return;
+            }
+            found = true;
+            break;
+          }
+        }
+        
+        if (!found) {
+          clearInterval(syncTimer);
+          logStatus("Трансляция закончилась.");
+          return;
+        }
+        
+        const drift = player.currentTime - idealTimeInCurrentVideo;
+        
+        if (Math.abs(drift) > 0.5) {
+            const newRate = drift > 0 ? 0.9 : 1.1;
+            player.playbackRate = newRate;
+            logStatus(`Корректировка скорости. Разница: ${drift.toFixed(2)} с. Новая скорость: ${newRate.toFixed(1)}x`);
+        } else {
+            player.playbackRate = 1.0;
+            const now = Date.now();
+            if (now - lastLogTime > 5000) {
+                logStatus('Синхронизировано.');
+                lastLogTime = now;
+            }
+        }
+      }, 1000);
+    }
+    
+    function logStatus(message) {
+      const now = new Date().toLocaleTimeString();
+      statusLog.textContent = `[${now}] ${message}\n` + statusLog.textContent;
+    }
+
+    initPlayer();
+  </script>
+</body>
+</html>
