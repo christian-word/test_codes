@@ -1,0 +1,96 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Проверка видео-ссылки</title>
+<style>
+  body {
+    font-family: sans-serif;
+    background: #111;
+    color: #eee;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+  }
+  input[type="text"] {
+    width: 90%;
+    max-width: 900px;
+    padding: 10px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: none;
+    outline: none;
+  }
+  button {
+    margin-top: 10px;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 8px;
+    background: #28a745;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #218838;
+  }
+  .status {
+    margin-top: 15px;
+    font-size: 18px;
+  }
+  video {
+    width: 90%;
+    max-width: 960px;
+    margin-top: 20px;
+    border: 2px solid #555;
+    border-radius: 10px;
+  }
+</style>
+</head>
+<body>
+
+<h2>Проверка видео-ссылки и плеер</h2>
+
+<input type="text" id="videoUrl" placeholder="Вставь сюда ссылку на видео">
+<br>
+<button onclick="checkVideo()">Проверить и воспроизвести</button>
+
+<div class="status" id="status"></div>
+<div id="player"></div>
+
+<script>
+async function checkVideo() {
+  const url = document.getElementById('videoUrl').value.trim();
+  const statusEl = document.getElementById('status');
+  const playerEl = document.getElementById('player');
+  statusEl.textContent = '';
+  playerEl.innerHTML = '';
+
+  if (!url) {
+    statusEl.textContent = '⚠️ Введите ссылку!';
+    return;
+  }
+
+  statusEl.textContent = '🔄 Проверка ссылки...';
+
+  try {
+    const res = await fetch(url, { method: 'HEAD' });
+    if (res.ok) {
+      statusEl.textContent = '✅ Ссылка активна. Видео доступно.';
+      const video = document.createElement('video');
+      video.src = url;
+      video.controls = true;
+      video.autoplay = true;
+      playerEl.appendChild(video);
+    } else {
+      statusEl.textContent = `⚠️ Ссылка недоступна (код ${res.status}).`;
+    }
+  } catch (err) {
+    statusEl.textContent = `❌ Ошибка проверки: ${err.message}`;
+  }
+}
+</script>
+
+</body>
+</html>
