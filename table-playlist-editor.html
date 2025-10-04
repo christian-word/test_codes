@@ -1,0 +1,219 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Табличный редактор плейлиста</title>
+  <style>
+    body{
+      font-family:sans-serif;background:#111;color:#eee;padding:20px}
+    input[type=text]{
+      padding:6px;font-size:14px;width:100%;box-sizing:border-box;border:none;border-radius:4px}
+    table{
+      width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{
+      padding:8px;border:1px solid #444;text-align:left}
+    th{
+      background:#222}
+    tr.dragging{
+      opacity:.5}
+    button{
+      padding:4px 8px;font-size:14px;border:none;border-radius:4px;cursor:pointer}
+    .add-btn{
+      background:#28a745;color:#fff}
+    .save-btn{
+      background:#007bff;color:#fff}
+    .load-btn{
+      background:#ffc107;color:#000}
+    .play-btn{
+      background:#17a2b8;color:#fff}
+    .del-btn{
+      background:#dc3545;color:#fff}
+    .status{
+      margin-top:10px;font-size:16px}
+    #previewBox{
+      display:none;position:fixed;inset:0;background:#000c;z-index:9999}
+    #previewBox>div{
+      margin:10vh auto;width:90%;max-width:900px}
+    #previewPlayer{
+      width:100%;border-radius:8px}
+    .save-btn:disabled{
+      background:#444;cursor:not-allowed}
+    #saveWarning{
+      color:#ff6666;margin-left:10px}
+  </style>
+</head>
+<body>
+
+  <h2>📋 Табличный редактор плейлиста</h2>
+
+  <input type="text" id="videoUrl" placeholder="Вставьте ссылку на видео (MP4, WebM...)" size="80">
+  <button class="add-btn" onclick="addVideo()">Добавить</button>
+  <button class="save-btn" onclick="savePlaylist()">Сохранить плейлист</button>
+
+  <hr style="margin:20px 0;border:none;border-top:1px solid #444">
+  <label>
+    Ссылка на playlist.json:
+    <input type="text" id="playlistUrl" placeholder="https://site.com/playlist.json" size="80">
+    <button class="load-btn" onclick="loadPlaylist()">Загрузить</button>
+  </label>
+
+  <div class="status" id="status"></div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>№</th>
+        <th>Название</th>
+        <th>URL</th>
+        <th>Длит.</th>
+        <th>Разреш.</th>
+        <th>▶</th>
+        <th>✖</th>
+      </tr>
+    </thead>
+    <tbody id="playlistBody"></tbody>
+  </table>
+
+  <div id="previewBox">
+    <div>
+      <button onclick="closePreview()" style="float:right;background:#e33;color:#fff">✖</button>
+      <video id="previewPlayer" controls></video>
+    </div>
+  </div>
+
+  <script>
+    const playlist={
+      broadcastStartTime:new Date().toISOString(),
+      programSchedule:[]
+    };
+
+    function setStatus(msg){
+      document.getElementById('status').textContent=msg}
+
+    async function addVideo(){
+      const url=document.getElementById('videoUrl').value.trim();
+      if(!url){setStatus('⚠️ Введите ссылку!');return}
+      setStatus('🔄 Проверка ссылки...');
+      try{
+        const res=await fetch(url,{method:'HEAD'});
+        if(!res.ok)throw new Error(`Код ${res.status}`)
+      }catch(err){setStatus(`❌ Ошибка: ${err.message}`);return}
+      const video=document.createElement('video');
+      video.src=url;video.preload='metadata';
+      video.onloadedmetadata=()=>{
+        playlist.programSchedule.push({
+          url:url,
+          duration:Math.round(video.duration),
+          resolution:`${video.videoWidth}x${video.videoHeight}`,
+          title:''
+        });
+        setStatus('✅ Видео добавлено.');
+        renderTable()
+      };
+      video.onerror=()=>setStatus('❌ Ошибка загрузки видео.')
+    }
+
+    function renderTable(){
+      const tbody=document.getElementById('playlistBody');
+      tbody.innerHTML='';
+      let hasEmpty=false;
+      playlist.programSchedule.forEach((item,index)=>{
+        const tr=document.createElement('tr');
+        tr.draggable=true;
+        tr.dataset.index=index;
+        tr.innerHTML=`
+          <td>${index+1}</td>
+          <td><input type="text" value="${item.title}" onchange="updateTitle(${index},this.value)"></td>
+          <td><a href="${item.url}" target="_blank">Ссылка</a></td>
+          <td>${item.duration} с</td>
+          <td>${item.resolution}</td>
+          <td><button class="play-btn" onclick="playPreview('${item.url}')">▶</button></td>
+          <td><button class="del-btn" onclick="deleteRow(${index})">✖</button></td>`;
+        tr.ondragstart=e=>{
+          e.dataTransfer.effectAllowed='move';
+          e.dataTransfer.setData('text/plain',index);
+          tr.classList.add('dragging')
+        };
+        tr.ondragover=e=>e.preventDefault();
+        tr.ondrop=e=>{
+          e.preventDefault();
+          const from=+e.dataTransfer.getData('text/plain');
+          const to=+tr.dataset.index;
+          moveRow(from,to)
+        };
+        tr.ondragend=()=>tr.classList.remove('dragging');
+        tbody.appendChild(tr);
+        if(!item.title.trim())hasEmpty=true
+      });
+      const saveBtn=document.querySelector('.save-btn');
+      const warning=document.getElementById('saveWarning');
+      if(hasEmpty){
+        saveBtn.disabled=true;
+        if(!warning){
+          const msg=document.createElement('span');
+          msg.id='saveWarning';
+          msg.textContent='⚠️ Заполните названия всех видео перед сохранением.';
+          saveBtn.parentNode.insertBefore(msg,saveBtn.nextSibling)
+        }
+      }else{
+        saveBtn.disabled=false;
+        if(warning)warning.remove()
+      }
+    }
+
+    function updateTitle(index,val){
+      playlist.programSchedule[index].title=val.trim();
+      renderTable()
+    }
+    function deleteRow(index){
+      if(!confirm('Удалить строку?'))return;
+      playlist.programSchedule.splice(index,1);
+      renderTable()
+    }
+    function moveRow(from,to){
+      const[item]=playlist.programSchedule.splice(from,1);
+      playlist.programSchedule.splice(to,0,item);
+      renderTable()
+    }
+    function playPreview(url){
+      const box=document.getElementById('previewBox');
+      const player=document.getElementById('previewPlayer');
+      player.src=url;
+      box.style.display='block';
+      player.play()
+    }
+    function closePreview(){
+      const box=document.getElementById('previewBox');
+      const player=document.getElementById('previewPlayer');
+      player.pause();player.src='';box.style.display='none'
+    }
+    function savePlaylist(){
+      const empty=playlist.programSchedule.some(v=>!v.title.trim());
+      if(empty){setStatus('⚠️ Заполните названия всех видео!');return}
+      const dataStr=JSON.stringify(playlist,null,2);
+      const blob=new Blob([dataStr],{type:'application/json'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;a.download='playlist.json';a.click();
+      setStatus('✅ Плейлист сохранён.')
+    }
+    async function loadPlaylist(){
+      const url=document.getElementById('playlistUrl').value.trim();
+      if(!url){setStatus('⚠️ Укажите ссылку на JSON!');return}
+      try{
+        setStatus('🔄 Загрузка плейлиста...');
+        const res=await fetch(url);
+        if(!res.ok)throw new Error(`HTTP ${res.status}`);
+        const data=await res.json();
+        if(!data.programSchedule||!Array.isArray(data.programSchedule))throw new Error('Неверная структура JSON');
+        playlist.broadcastStartTime=data.broadcastStartTime||new Date().toISOString();
+        playlist.programSchedule=data.programSchedule.map(item=>({
+          url:item.url||'',duration:item.duration||0,resolution:item.resolution||'',title:item.title||''}));
+        renderTable();
+        setStatus('✅ Плейлист загружен.')
+      }catch(err){setStatus(`❌ Ошибка загрузки: ${err.message}`)}
+    }
+  </script>
+
+</body>
+</html>
